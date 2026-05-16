@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import binascii
 import json
 import os
+import re
 import sqlite3
 import uuid
 from dataclasses import dataclass
@@ -13,7 +16,7 @@ from typing import Any, Literal
 
 import httpx
 from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel, Field, ValidationError, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
 
 UTC = timezone.utc
@@ -45,6 +48,15 @@ class PolicyStatus(str, Enum):
     ALLOW = "allow"
     BLOCK = "block"
     ESCALATE = "escalate"
+
+
+class EvidenceType(str, Enum):
+    LABEL_PHOTO = "label_photo"
+    RECALL_NOTICE = "recall_notice"
+    TEMPERATURE_SCREENSHOT = "temperature_screenshot"
+    PACKAGE_DAMAGE = "package_damage"
+    PHARMACIST_NOTE = "pharmacist_note"
+    OTHER = "other"
 
 
 class TemperatureReading(BaseModel):
@@ -155,6 +167,43 @@ class AgentRunResponse(BaseModel):
     recurring_waste_patterns: list[dict[str, Any]]
 
 
+class EvidenceAnalysisRequest(BaseModel):
+    evidence_id: str = Field(default_factory=lambda: f"ev-{uuid.uuid4().hex}")
+    source: str = "api"
+    evidence_type: EvidenceType
+    mime_type: str = "text/plain"
+    text: str | None = None
+    content_base64: str | None = None
+    source_uri: str | None = None
+    related_lot_id: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def require_evidence_payload(self) -> "EvidenceAnalysisRequest":
+        if not (self.text or self.content_base64 or self.source_uri):
+            raise ValueError("Provide text, content_base64, or source_uri evidence")
+        if self.content_base64:
+            try:
+                base64.b64decode(self.content_base64, validate=True)
+            except binascii.Error as exc:
+                raise ValueError("content_base64 must be valid base64") from exc
+        return self
+
+
+class EvidenceAnalysisResponse(BaseModel):
+    evidence_id: str
+    created_at: datetime
+    evidence_type: EvidenceType
+    model: str
+    extracted_facts: dict[str, Any] = Field(default_factory=dict)
+    inferred_lot_patch: dict[str, Any] = Field(default_factory=dict)
+    safety_signals: list[str] = Field(default_factory=list)
+    compliance_signals: list[str] = Field(default_factory=list)
+    recommended_next_step: RecommendedAction
+    confidence: float = Field(default=0.7, ge=0, le=1)
+    rationale: str
+
+
 def now_utc() -> datetime:
     return datetime.now(UTC)
 
@@ -170,6 +219,7 @@ class AgentSettings:
     triage_model: str
     compliance_model: str
     pattern_model: str
+    omni_model: str
     pharmacy_data_url: str | None
     database_path: Path
     high_value_threshold_usd: float
@@ -197,6 +247,10 @@ class AgentSettings:
             pattern_model=os.getenv(
                 "NEMOTRON_PATTERN_MODEL",
                 "nvidia/llama-3.1-nemotron-nano-8b-v1",
+            ),
+            omni_model=os.getenv(
+                "NEMOTRON_OMNI_MODEL",
+                "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
             ),
             pharmacy_data_url=os.getenv("PHARMACY_DATA_URL"),
             database_path=db_path,
@@ -277,6 +331,17 @@ class MemoryStore:
                     latest_signal TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
+
+                CREATE TABLE IF NOT EXISTS evidence_reports (
+                    evidence_id TEXT PRIMARY KEY,
+                    created_at TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    evidence_type TEXT NOT NULL,
+                    related_lot_id TEXT,
+                    model TEXT NOT NULL,
+                    evidence_json TEXT NOT NULL,
+                    analysis_json TEXT NOT NULL
+                );
                 """
             )
 
@@ -354,6 +419,58 @@ class MemoryStore:
                     ),
                 )
             self._upsert_pattern(conn, lot, evaluation)
+
+    def record_evidence_analysis(
+        self, request: EvidenceAnalysisRequest, response: EvidenceAnalysisResponse
+    ) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO evidence_reports (
+                    evidence_id,
+                    created_at,
+                    source,
+                    evidence_type,
+                    related_lot_id,
+                    model,
+                    evidence_json,
+                    analysis_json
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(evidence_id) DO UPDATE SET
+                    created_at = excluded.created_at,
+                    source = excluded.source,
+                    evidence_type = excluded.evidence_type,
+                    related_lot_id = excluded.related_lot_id,
+                    model = excluded.model,
+                    evidence_json = excluded.evidence_json,
+                    analysis_json = excluded.analysis_json
+                """,
+                (
+                    response.evidence_id,
+                    response.created_at.isoformat(),
+                    request.source,
+                    request.evidence_type.value,
+                    request.related_lot_id,
+                    response.model,
+                    json_dumps(self._redacted_evidence(request)),
+                    response.model_dump_json(),
+                ),
+            )
+
+    def _redacted_evidence(self, request: EvidenceAnalysisRequest) -> dict[str, Any]:
+        encoded_size = len(request.content_base64) if request.content_base64 else 0
+        return {
+            "evidence_id": request.evidence_id,
+            "evidence_type": request.evidence_type.value,
+            "mime_type": request.mime_type,
+            "source_uri": request.source_uri,
+            "related_lot_id": request.related_lot_id,
+            "metadata": request.metadata,
+            "text": request.text,
+            "content_base64": "<redacted>" if request.content_base64 else None,
+            "content_base64_chars": encoded_size,
+        }
 
     def _upsert_pattern(
         self, conn: sqlite3.Connection, lot: MedicationLot, evaluation: LotEvaluation
@@ -519,6 +636,39 @@ class MemoryStore:
             ).fetchall()
         return [dict(row) for row in rows]
 
+    def evidence_reports(self, limit: int = 50) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    evidence_id,
+                    created_at,
+                    source,
+                    evidence_type,
+                    related_lot_id,
+                    model,
+                    evidence_json,
+                    analysis_json
+                FROM evidence_reports
+                ORDER BY created_at DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [
+            {
+                "evidence_id": row["evidence_id"],
+                "created_at": row["created_at"],
+                "source": row["source"],
+                "evidence_type": row["evidence_type"],
+                "related_lot_id": row["related_lot_id"],
+                "model": row["model"],
+                "evidence": json.loads(row["evidence_json"]),
+                "analysis": json.loads(row["analysis_json"]),
+            }
+            for row in rows
+        ]
+
 
 class DataIngestionLayer:
     def __init__(self, settings: AgentSettings):
@@ -579,6 +729,71 @@ class NemotronClient:
             "top_p": 0.9,
             "max_tokens": 700,
         }
+        content = await self._post_chat_completion(request_payload)
+        return self._parse_json_content(content) | {"model": model}
+
+    async def complete_multimodal_json(
+        self,
+        *,
+        model: str,
+        system_prompt: str,
+        request: EvidenceAnalysisRequest,
+        fallback: dict[str, Any],
+    ) -> dict[str, Any]:
+        if not self.enabled:
+            return fallback | {"model": f"{model} (local-fallback)"}
+
+        user_content: str | list[dict[str, Any]]
+        prompt_text = (
+            "Return strict JSON only with keys extracted_facts, inferred_lot_patch, "
+            "safety_signals, compliance_signals, recommended_next_step, confidence, "
+            "and rationale. Analyze this pharmacy evidence:\n"
+            f"{json_dumps(self._evidence_prompt_payload(request))}"
+        )
+        if request.content_base64 and request.mime_type.startswith("image/"):
+            user_content = [
+                {"type": "text", "text": prompt_text},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": (
+                            f"data:{request.mime_type};base64,"
+                            f"{request.content_base64}"
+                        )
+                    },
+                },
+            ]
+        else:
+            user_content = prompt_text
+
+        request_payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content},
+            ],
+            "temperature": 0.1,
+            "top_p": 0.9,
+            "max_tokens": 900,
+        }
+        content = await self._post_chat_completion(request_payload)
+        return self._parse_json_content(content) | {"model": model}
+
+    def _evidence_prompt_payload(
+        self, request: EvidenceAnalysisRequest
+    ) -> dict[str, Any]:
+        return {
+            "evidence_id": request.evidence_id,
+            "evidence_type": request.evidence_type.value,
+            "mime_type": request.mime_type,
+            "text": request.text,
+            "source_uri": request.source_uri,
+            "related_lot_id": request.related_lot_id,
+            "metadata": request.metadata,
+            "has_base64_media": bool(request.content_base64),
+        }
+
+    async def _post_chat_completion(self, request_payload: dict[str, Any]) -> str:
         headers = {
             "Authorization": f"Bearer {self.settings.nvidia_api_key}",
             "Content-Type": "application/json",
@@ -590,16 +805,151 @@ class NemotronClient:
                 json=request_payload,
             )
             response.raise_for_status()
-        content = response.json()["choices"][0]["message"]["content"]
+        return response.json()["choices"][0]["message"]["content"]
+
+    def _parse_json_content(self, content: str) -> dict[str, Any]:
         try:
-            parsed = json.loads(content)
+            return json.loads(content)
         except json.JSONDecodeError:
             start = content.find("{")
             end = content.rfind("}")
             if start == -1 or end == -1:
                 raise
-            parsed = json.loads(content[start : end + 1])
-        return parsed | {"model": model}
+            return json.loads(content[start : end + 1])
+
+
+class NanoOmniEvidenceAgent:
+    def __init__(self, settings: AgentSettings):
+        self.settings = settings
+        self.client = NemotronClient(settings)
+
+    async def analyze(
+        self, request: EvidenceAnalysisRequest
+    ) -> EvidenceAnalysisResponse:
+        fallback = self._heuristic_evidence_analysis(request)
+        result = await self.client.complete_multimodal_json(
+            model=self.settings.omni_model,
+            system_prompt=(
+                "You are Nemotron NanoOmni acting as a multimodal pharmacy evidence "
+                "sub-agent. Extract medication facts from labels, screenshots, recall "
+                "notices, package-damage images, and pharmacist notes. Flag safety "
+                "or compliance concerns, but do not execute tools."
+            ),
+            request=request,
+            fallback=fallback,
+        )
+        payload = {
+            "evidence_id": request.evidence_id,
+            "created_at": now_utc(),
+            "evidence_type": request.evidence_type,
+            "model": result.get("model", self.settings.omni_model),
+            "extracted_facts": result.get("extracted_facts", {}),
+            "inferred_lot_patch": result.get("inferred_lot_patch", {}),
+            "safety_signals": result.get("safety_signals", []),
+            "compliance_signals": result.get("compliance_signals", []),
+            "recommended_next_step": result.get(
+                "recommended_next_step", fallback["recommended_next_step"]
+            ),
+            "confidence": result.get("confidence", fallback["confidence"]),
+            "rationale": result.get("rationale", fallback["rationale"]),
+        }
+        try:
+            return EvidenceAnalysisResponse.model_validate(payload)
+        except ValidationError:
+            return EvidenceAnalysisResponse.model_validate(
+                payload
+                | {
+                    "recommended_next_step": fallback["recommended_next_step"],
+                    "confidence": fallback["confidence"],
+                    "rationale": fallback["rationale"],
+                }
+            )
+
+    def _heuristic_evidence_analysis(
+        self, request: EvidenceAnalysisRequest
+    ) -> dict[str, Any]:
+        evidence_text = " ".join(
+            [
+                request.text or "",
+                request.source_uri or "",
+                json_dumps(request.metadata),
+                request.evidence_type.value,
+            ]
+        ).lower()
+        extracted_facts: dict[str, Any] = {
+            "related_lot_id": request.related_lot_id,
+            "mime_type": request.mime_type,
+            "source_uri": request.source_uri,
+        }
+        inferred_patch: dict[str, Any] = {}
+        safety_signals: list[str] = []
+        compliance_signals: list[str] = []
+        next_step = RecommendedAction.HOLD.value
+        confidence = 0.62
+
+        if request.content_base64 and request.mime_type.startswith("image/"):
+            extracted_facts["media_received"] = "image"
+            confidence = 0.58
+        elif request.content_base64:
+            extracted_facts["media_received"] = request.mime_type
+
+        ndc_match = re.search(r"\b\d{4,5}-\d{3,4}-\d{1,2}\b", evidence_text)
+        if ndc_match:
+            inferred_patch["ndc"] = ndc_match.group(0)
+            confidence = max(confidence, 0.72)
+
+        lot_match = re.search(r"\blot[:\s#-]+([a-z0-9-]+)\b", evidence_text)
+        if lot_match:
+            inferred_patch["lot_id"] = lot_match.group(1).upper()
+            confidence = max(confidence, 0.72)
+
+        temp_values = [
+            float(match)
+            for match in re.findall(r"(-?\d+(?:\.\d+)?)\s*(?:c|celsius|deg c)", evidence_text)
+        ]
+        if temp_values:
+            extracted_facts["temperature_celsius_values"] = temp_values
+            if any(value < 2 or value > 8 for value in temp_values):
+                safety_signals.append("temperature_excursion")
+                compliance_signals.append("cold_chain_review_required")
+                next_step = RecommendedAction.QUARANTINE_LOT.value
+                confidence = max(confidence, 0.82)
+
+        if "recall" in evidence_text and not any(
+            marker in evidence_text for marker in ["no recall", "not recalled"]
+        ):
+            inferred_patch["recall_status"] = RecallStatus.ACTIVE.value
+            safety_signals.append("possible_active_recall")
+            compliance_signals.append("recall_handling_required")
+            next_step = RecommendedAction.QUARANTINE_LOT.value
+            confidence = max(confidence, 0.8)
+
+        if any(word in evidence_text for word in ["damaged", "cracked", "leaking", "tamper"]):
+            safety_signals.append("package_integrity_issue")
+            next_step = RecommendedAction.NOTIFY_PHARMACIST.value
+            confidence = max(confidence, 0.76)
+
+        if any(word in evidence_text for word in ["controlled", "schedule ii", "c-ii"]):
+            compliance_signals.append("controlled_substance_review")
+            next_step = RecommendedAction.REQUEST_HUMAN_APPROVAL.value
+            confidence = max(confidence, 0.78)
+
+        if not safety_signals and not compliance_signals and request.evidence_type == EvidenceType.LABEL_PHOTO:
+            next_step = RecommendedAction.HOLD.value
+
+        return {
+            "extracted_facts": extracted_facts,
+            "inferred_lot_patch": inferred_patch,
+            "safety_signals": safety_signals,
+            "compliance_signals": compliance_signals,
+            "recommended_next_step": next_step,
+            "confidence": confidence,
+            "rationale": (
+                "NanoOmni evidence pass extracted available facts and surfaced "
+                "safety/compliance signals for the structured agent workflow."
+            ),
+            "model": self.settings.omni_model,
+        }
 
 
 class NemotronReasoningAgent:
@@ -939,6 +1289,7 @@ class PharmacyAgentService:
     def __init__(self, settings: AgentSettings):
         self.settings = settings
         self.ingestion = DataIngestionLayer(settings)
+        self.evidence = NanoOmniEvidenceAgent(settings)
         self.reasoning = NemotronReasoningAgent(settings)
         self.policy = NemoClawPolicyLayer(settings.high_value_threshold_usd)
         self.tools = OpenClawToolExecutionLayer()
@@ -950,7 +1301,15 @@ class PharmacyAgentService:
             "triage": self.settings.triage_model,
             "compliance": self.settings.compliance_model,
             "patterns": self.settings.pattern_model,
+            "multimodal_evidence": self.settings.omni_model,
         }
+
+    async def analyze_evidence(
+        self, request: EvidenceAnalysisRequest
+    ) -> EvidenceAnalysisResponse:
+        response = await self.evidence.analyze(request)
+        self.memory.record_evidence_analysis(request, response)
+        return response
 
     async def ingest_lots(self, batch: IngestionBatch) -> dict[str, Any]:
         run_id = f"ingest-{uuid.uuid4().hex}"
@@ -1110,6 +1469,13 @@ async def ingest_lots(batch: IngestionBatch) -> dict[str, Any]:
     return await service.ingest_lots(batch)
 
 
+@app.post("/evidence/analyze", response_model=EvidenceAnalysisResponse)
+async def analyze_evidence(
+    request: EvidenceAnalysisRequest,
+) -> EvidenceAnalysisResponse:
+    return await service.analyze_evidence(request)
+
+
 @app.post("/agent/run", response_model=AgentRunResponse)
 async def run_agent(request: AgentRunRequest) -> AgentRunResponse:
     return await service.run(request)
@@ -1131,6 +1497,13 @@ async def audit_run_detail(run_id: str) -> dict[str, Any]:
     if not detail:
         raise HTTPException(status_code=404, detail="Run not found")
     return detail
+
+
+@app.get("/audit/evidence")
+async def audit_evidence(
+    limit: int = Query(default=50, ge=1, le=100)
+) -> list[dict[str, Any]]:
+    return service.memory.evidence_reports(limit)
 
 
 @app.get("/memory/patterns")

@@ -9,6 +9,8 @@ from pathlib import Path
 from backend.app import (
     AgentRunRequest,
     AgentSettings,
+    EvidenceAnalysisRequest,
+    EvidenceType,
     MedicationLot,
     NemoClawPolicyLayer,
     NemotronReasoningAgent,
@@ -54,6 +56,7 @@ def settings(path: Path) -> AgentSettings:
         triage_model="triage-model",
         compliance_model="compliance-model",
         pattern_model="pattern-model",
+        omni_model="omni-model",
         pharmacy_data_url=None,
         database_path=path,
         high_value_threshold_usd=5000,
@@ -123,6 +126,36 @@ class PharmacyAgentTests(unittest.TestCase):
             self.assertEqual(len(detail["observations"]), 1)
             self.assertEqual(len(detail["recommendations"]), 1)
             self.assertGreaterEqual(len(service.memory.patterns()), 1)
+
+    def test_nanoomni_evidence_agent_flags_recall_notice(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "agent.sqlite3"
+            service = PharmacyAgentService(settings(db_path))
+            response = asyncio.run(
+                service.analyze_evidence(
+                    EvidenceAnalysisRequest(
+                        evidence_id="ev-test-recall",
+                        source="test",
+                        evidence_type=EvidenceType.RECALL_NOTICE,
+                        mime_type="text/plain",
+                        related_lot_id="LOT-1",
+                        text=(
+                            "Urgent recall notice for lot LOT-1, NDC 00000-0000-00. "
+                            "Stop dispensing and quarantine immediately."
+                        ),
+                    )
+                )
+            )
+            reports = service.memory.evidence_reports()
+
+            self.assertEqual(response.model, "omni-model (local-fallback)")
+            self.assertIn("possible_active_recall", response.safety_signals)
+            self.assertEqual(
+                response.recommended_next_step,
+                RecommendedAction.QUARANTINE_LOT,
+            )
+            self.assertEqual(len(reports), 1)
+            self.assertEqual(reports[0]["evidence_id"], "ev-test-recall")
 
 
 if __name__ == "__main__":

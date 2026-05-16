@@ -399,8 +399,7 @@ export async function getInventory(): Promise<Array<InventoryLot>> {
 export async function getAuditLog(): Promise<Array<AuditLogEntry>> {
   try {
     const data = await fetchJson('/api/audit-log')
-    const normalized = normalizeAuditLog(data)
-    return normalized.length > 0 ? normalized : mockAuditLog
+    return normalizeAuditLog(data)
   } catch {
     return mockAuditLog
   }

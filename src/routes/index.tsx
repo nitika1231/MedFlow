@@ -28,7 +28,7 @@ export const Route = createFileRoute('/')({
 })
 
 function InventoryMonitor() {
-  const { inventory, dataSources } = useMedFlow()
+  const { inventory } = useMedFlow()
   const atRiskLots = inventory.filter((lot) => daysUntil(lot.expirationDate) <= 14)
   const wasteValueAtRisk = atRiskLots.reduce(
     (total, lot) => total + lot.unitsRemaining * lot.unitValueUsd,
@@ -57,26 +57,11 @@ function InventoryMonitor() {
 
       <Card className="border-[#d7e5d2] bg-white/90 shadow-2xl shadow-[#123c2f]/10">
         <CardHeader className="border-b border-[#d7e5d2] pb-5">
-          <div className="flex items-center justify-between gap-4">
-            <CardTitle className="whitespace-nowrap text-lg text-[#123c2f]">
-              Inventory Monitor
-            </CardTitle>
-            <Badge
-              variant="outline"
-              className="whitespace-nowrap border-[#6f9d7a]/50 bg-[#edf4ea] text-[#2f6b4f]"
-            >
-              Source: {dataSources.inventory}
-            </Badge>
-          </div>
+          <CardTitle className="whitespace-nowrap text-lg text-[#123c2f]">
+            Inventory Monitor
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 pt-2">
-          <div className="rounded-xl border border-[#d7e5d2] bg-[#f7faf5] px-4 py-3 text-sm text-[#123c2f]">
-            <span className="font-semibold">Where the numbers come from:</span>{' '}
-            inventory rows come from <code>/api/inventory</code> when the backend is
-            running. Total lots is the row count, at-risk lots expire within 14 days,
-            and waste value is <code>units remaining x unit value</code>. If the backend
-            is offline, the dashboard labels and uses demo fallback data.
-          </div>
           <Table>
             <TableHeader>
               <TableRow className="border-[#d7e5d2] hover:bg-transparent">

@@ -40,7 +40,7 @@ function InventoryMonitor() {
         <KpiCard
           title="Total lots monitored"
           value={inventory.length.toLocaleString()}
-          icon={<Boxes className="size-5 text-sky-300" />}
+          icon={<Boxes className="size-5 text-[#123c2f]" />}
         />
         <KpiCard
           title="Lots at risk"
@@ -50,18 +50,18 @@ function InventoryMonitor() {
         <KpiCard
           title="Estimated waste value at risk"
           value={formatCurrency(wasteValueAtRisk)}
-          icon={<DollarSign className="size-5 text-emerald-300" />}
+          icon={<DollarSign className="size-5 text-[#2f6b4f]" />}
         />
       </section>
 
-      <Card className="border-slate-800 bg-slate-950/70 shadow-2xl shadow-black/20">
-        <CardHeader className="border-b border-slate-800 pb-5">
-          <CardTitle className="text-lg text-white">Inventory Monitor</CardTitle>
+      <Card className="border-[#d7e5d2] bg-white/90 shadow-2xl shadow-[#123c2f]/10">
+        <CardHeader className="border-b border-[#d7e5d2] pb-5">
+          <CardTitle className="text-lg text-[#123c2f]">Inventory Monitor</CardTitle>
         </CardHeader>
         <CardContent className="pt-2">
           <Table>
             <TableHeader>
-              <TableRow className="border-slate-800 hover:bg-transparent">
+              <TableRow className="border-[#d7e5d2] hover:bg-transparent">
                 <TableHead>Medication name</TableHead>
                 <TableHead>Lot number</TableHead>
                 <TableHead>Location</TableHead>
@@ -73,13 +73,13 @@ function InventoryMonitor() {
             </TableHeader>
             <TableBody>
               {inventory.map((lot) => (
-                <TableRow key={lot.id} className="border-slate-800/80 hover:bg-slate-900/70">
-                  <TableCell className="font-semibold text-slate-100">
+                <TableRow key={lot.id} className="border-[#d7e5d2]/80 hover:bg-[#f0f6ed]">
+                  <TableCell className="font-semibold text-[#123c2f]">
                     {lot.medicationName}
                   </TableCell>
-                  <TableCell className="font-mono text-slate-300">{lot.lotNumber}</TableCell>
-                  <TableCell className="text-slate-300">{lot.location}</TableCell>
-                  <TableCell className="text-right font-mono text-slate-100">
+                  <TableCell className="font-mono text-[#3f5f4e]">{lot.lotNumber}</TableCell>
+                  <TableCell className="text-[#3f5f4e]">{lot.location}</TableCell>
+                  <TableCell className="text-right font-mono text-[#123c2f]">
                     {lot.unitsRemaining.toLocaleString()}
                   </TableCell>
                   <TableCell>
@@ -111,16 +111,16 @@ function KpiCard({
   icon: ReactNode
 }) {
   return (
-    <Card className="border-slate-800 bg-slate-950/70 shadow-2xl shadow-black/20">
+    <Card className="border-[#d7e5d2] bg-white/90 shadow-2xl shadow-[#123c2f]/10">
       <CardContent className="pt-0">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#6f8b78]">
               {title}
             </p>
-            <p className="mt-3 text-3xl font-bold text-white">{value}</p>
+            <p className="mt-3 text-3xl font-bold text-[#123c2f]">{value}</p>
           </div>
-          <div className="rounded-xl border border-slate-800 bg-slate-900 p-3">{icon}</div>
+          <div className="rounded-xl border border-[#d7e5d2] bg-[#edf4ea] p-3">{icon}</div>
         </div>
       </CardContent>
     </Card>
@@ -142,7 +142,7 @@ function ExpirationBadge({ lot }: { lot: InventoryLot }) {
         'gap-2 border font-mono',
         days < 7 && 'border-red-500/40 bg-red-500/15 text-red-300',
         days >= 7 && days <= 14 && 'border-amber-500/40 bg-amber-500/15 text-amber-300',
-        days > 14 && 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300',
+        days > 14 && 'border-[#6f9d7a]/50 bg-[#edf4ea] text-[#2f6b4f]',
       )}
     >
       {date}
@@ -156,9 +156,9 @@ function DemandBadge({ demand }: { demand: DemandLevel }) {
     <Badge
       variant="outline"
       className={cn(
-        demand === 'Low' && 'border-slate-600 bg-slate-800 text-slate-300',
+        demand === 'Low' && 'border-[#c7d8c2] bg-[#f7faf5] text-[#547765]',
         demand === 'Medium' && 'border-amber-500/40 bg-amber-500/15 text-amber-300',
-        demand === 'High' && 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300',
+        demand === 'High' && 'border-[#6f9d7a]/50 bg-[#edf4ea] text-[#2f6b4f]',
       )}
     >
       {demand}
@@ -172,11 +172,11 @@ function StatusBadge({ status }: { status: LotStatus }) {
       variant="outline"
       className={cn(
         'font-mono',
-        status === 'NORMAL' && 'border-slate-600 bg-slate-800 text-slate-300',
+        status === 'NORMAL' && 'border-[#c7d8c2] bg-[#f7faf5] text-[#547765]',
         status === 'AT RISK' && 'border-amber-500/40 bg-amber-500/15 text-amber-300',
         status === 'FLAGGED' && 'border-orange-500/40 bg-orange-500/15 text-orange-300',
         status === 'QUARANTINED' && 'border-red-500/40 bg-red-500/15 text-red-300',
-        status === 'PENDING APPROVAL' && 'border-sky-500/40 bg-sky-500/15 text-sky-300',
+        status === 'PENDING APPROVAL' && 'border-[#5c7f68]/50 bg-[#e6efe2] text-[#123c2f]',
       )}
     >
       {status}

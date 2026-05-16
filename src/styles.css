@@ -39,33 +39,33 @@
 
 :root {
   --radius: 0.875rem;
-  --background: oklch(0.13 0.028 257);
-  --foreground: oklch(0.96 0.01 247);
-  --card: oklch(0.18 0.033 257);
-  --card-foreground: oklch(0.96 0.01 247);
-  --popover: oklch(0.17 0.033 257);
-  --popover-foreground: oklch(0.96 0.01 247);
-  --primary: oklch(0.72 0.16 158);
-  --primary-foreground: oklch(0.13 0.03 257);
-  --secondary: oklch(0.24 0.035 257);
-  --secondary-foreground: oklch(0.93 0.012 247);
-  --muted: oklch(0.24 0.035 257);
-  --muted-foreground: oklch(0.68 0.03 250);
-  --accent: oklch(0.28 0.05 253);
-  --accent-foreground: oklch(0.96 0.01 247);
+  --background: oklch(0.985 0.012 125);
+  --foreground: oklch(0.26 0.06 155);
+  --card: oklch(0.997 0.006 120);
+  --card-foreground: oklch(0.26 0.06 155);
+  --popover: oklch(0.997 0.006 120);
+  --popover-foreground: oklch(0.26 0.06 155);
+  --primary: oklch(0.35 0.09 155);
+  --primary-foreground: oklch(0.99 0.006 120);
+  --secondary: oklch(0.92 0.035 125);
+  --secondary-foreground: oklch(0.28 0.06 155);
+  --muted: oklch(0.94 0.026 125);
+  --muted-foreground: oklch(0.48 0.04 145);
+  --accent: oklch(0.88 0.055 130);
+  --accent-foreground: oklch(0.24 0.065 155);
   --destructive: oklch(0.68 0.22 25);
   --destructive-foreground: oklch(0.985 0.006 247);
-  --border: oklch(0.31 0.037 257);
-  --input: oklch(0.31 0.037 257);
-  --ring: oklch(0.72 0.16 158);
-  --success: oklch(0.72 0.16 158);
-  --success-foreground: oklch(0.12 0.04 150);
+  --border: oklch(0.84 0.04 130);
+  --input: oklch(0.84 0.04 130);
+  --ring: oklch(0.35 0.09 155);
+  --success: oklch(0.48 0.12 150);
+  --success-foreground: oklch(0.99 0.006 120);
   --warning: oklch(0.82 0.15 84);
   --warning-foreground: oklch(0.18 0.04 80);
   --danger: oklch(0.68 0.22 25);
   --danger-foreground: oklch(0.985 0.006 247);
-  --brand: oklch(0.72 0.16 158);
-  --brand-foreground: oklch(0.12 0.04 150);
+  --brand: oklch(0.35 0.09 155);
+  --brand-foreground: oklch(0.99 0.006 120);
 }
 
 .dark {
@@ -106,9 +106,9 @@ body {
   margin: 0;
   min-width: 320px;
   background:
-    radial-gradient(circle at top left, oklch(0.42 0.1 158 / 25%), transparent 34rem),
-    radial-gradient(circle at top right, oklch(0.36 0.11 250 / 18%), transparent 32rem),
-    linear-gradient(180deg, oklch(0.12 0.028 257), oklch(0.09 0.024 257));
+    radial-gradient(circle at top left, oklch(0.86 0.07 130 / 55%), transparent 34rem),
+    radial-gradient(circle at top right, oklch(0.77 0.055 145 / 32%), transparent 32rem),
+    linear-gradient(180deg, oklch(0.99 0.008 120), oklch(0.94 0.028 128));
   color: var(--foreground);
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -120,7 +120,7 @@ code {
 }
 
 ::selection {
-  background: oklch(0.72 0.16 158 / 35%);
+  background: oklch(0.78 0.08 135 / 45%);
 }
 
 ::-webkit-scrollbar {
@@ -129,16 +129,16 @@ code {
 }
 
 ::-webkit-scrollbar-track {
-  background: oklch(0.12 0.028 257);
+  background: oklch(0.95 0.02 125);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: oklch(0.34 0.04 257);
+  background: oklch(0.72 0.055 135);
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.45 0.05 257);
+  background: oklch(0.58 0.07 145);
 }
 
 .terminal-cursor {

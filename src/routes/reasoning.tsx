@@ -160,21 +160,21 @@ function AgentReasoning() {
   )
 
   return (
-    <div className="grid h-[calc(100vh-11rem)] grid-cols-[40%_60%] overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/75 shadow-2xl shadow-black/30">
-      <aside className="overflow-y-auto border-r border-slate-800 bg-slate-950/65">
-        <div className="sticky top-0 border-b border-slate-800 bg-slate-950/95 p-5 backdrop-blur">
+    <div className="grid h-[calc(100vh-11rem)] grid-cols-[40%_60%] overflow-hidden rounded-2xl border border-[#d7e5d2] bg-white/90 shadow-2xl shadow-[#123c2f]/10">
+      <aside className="overflow-y-auto border-r border-[#d7e5d2] bg-[#f7faf5]">
+        <div className="sticky top-0 border-b border-[#d7e5d2] bg-white/95 p-5 backdrop-blur">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-lg font-semibold text-white">Medication lots</h1>
-              <p className="mt-1 text-sm text-slate-500">
+              <h1 className="text-lg font-semibold text-[#123c2f]">Medication lots</h1>
+              <p className="mt-1 text-sm text-[#547765]">
                 Nemotron trace router · {socketConnected ? 'WebSocket live' : 'demo stream'}
               </p>
             </div>
             <Badge
               variant="outline"
               className={cn(
-                'border-slate-700 bg-slate-900 text-slate-300',
-                socketConnected && 'border-emerald-500/40 text-emerald-300',
+                'border-[#c7d8c2] bg-white text-[#547765]',
+                socketConnected && 'border-[#6f9d7a]/50 text-[#2f6b4f]',
               )}
             >
               {socketConnected ? 'connected' : 'mock'}
@@ -191,14 +191,14 @@ function AgentReasoning() {
               className={cn(
                 'w-full rounded-xl border p-4 text-left transition',
                 selectedLotId === lot.id
-                  ? 'border-emerald-400/45 bg-emerald-400/10 shadow-lg shadow-emerald-950/20'
-                  : 'border-slate-800 bg-slate-900/45 hover:border-slate-700 hover:bg-slate-900',
+                  ? 'border-[#2f6b4f]/45 bg-[#edf4ea] shadow-lg shadow-[#123c2f]/10'
+                  : 'border-[#d7e5d2] bg-white hover:border-[#b8cdb1] hover:bg-[#f0f6ed]',
               )}
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="font-semibold text-slate-100">{lot.medicationName}</p>
-                  <p className="mt-1 font-mono text-xs text-slate-500">{lot.lotNumber}</p>
+                  <p className="font-semibold text-[#123c2f]">{lot.medicationName}</p>
+                  <p className="mt-1 font-mono text-xs text-[#6f8b78]">{lot.lotNumber}</p>
                 </div>
                 <LotStatusIndicator status={lotStatuses[lot.id] ?? 'pending'} />
               </div>
@@ -207,30 +207,30 @@ function AgentReasoning() {
         </div>
       </aside>
 
-      <section className="flex min-w-0 flex-col bg-[#0d1117]">
-        <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
+      <section className="flex min-w-0 flex-col bg-[#123c2f]">
+        <div className="flex items-center justify-between border-b border-[#d7e5d2]/20 px-5 py-4">
           <div>
-            <h2 className="font-mono text-sm font-semibold text-slate-200">
+            <h2 className="font-mono text-sm font-semibold text-[#eef6ec]">
               {selectedLot?.medicationName} · {selectedLot?.lotNumber}
             </h2>
-            <p className="mt-1 font-mono text-xs text-slate-500">agent-trace://{selectedLotId}</p>
+            <p className="mt-1 font-mono text-xs text-[#b8cdb1]">agent-trace://{selectedLotId}</p>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1.5 font-mono text-xs text-emerald-200">
-            <span className="size-2 rounded-full bg-emerald-400" />
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5d2]/30 bg-white/10 px-3 py-1.5 font-mono text-xs text-[#eef6ec]">
+            <span className="size-2 rounded-full bg-[#b9d2ae]" />
             Model: {MODEL_NAME}
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 font-mono text-sm leading-6">
           {selectedTrace.length === 0 ? (
-            <div className="text-slate-500">
+            <div className="text-[#b8cdb1]">
               Waiting for trace tokens for this lot
               {streaming ? <span className="terminal-cursor ml-1">█</span> : null}
             </div>
           ) : (
             selectedTrace.map((entry) => <TraceLine key={entry.id} entry={entry} />)
           )}
-          {streaming ? <span className="terminal-cursor text-slate-200">█</span> : null}
+          {streaming ? <span className="terminal-cursor text-[#eef6ec]">█</span> : null}
           <div ref={streamEndRef} />
         </div>
       </section>
@@ -240,14 +240,14 @@ function AgentReasoning() {
 
 function LotStatusIndicator({ status }: { status: LotProcessingStatus }) {
   if (status === 'pending') {
-    return <span className="mt-1 size-2.5 rounded-full bg-slate-500" aria-label="Pending" />
+    return <span className="mt-1 size-2.5 rounded-full bg-[#9fb79a]" aria-label="Pending" />
   }
 
   if (status === 'processing') {
     return (
       <span className="relative mt-1 flex size-3" aria-label="Processing">
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-75" />
-        <span className="relative inline-flex size-3 rounded-full bg-sky-400" />
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#2f6b4f] opacity-75" />
+        <span className="relative inline-flex size-3 rounded-full bg-[#2f6b4f]" />
       </span>
     )
   }
@@ -260,14 +260,14 @@ function LotStatusIndicator({ status }: { status: LotProcessingStatus }) {
     return <Clock3 className="size-5 text-amber-300" aria-label="Awaiting approval" />
   }
 
-  return <CheckCircle2 className="size-5 text-emerald-300" aria-label="Completed action taken" />
+  return <CheckCircle2 className="size-5 text-[#2f6b4f]" aria-label="Completed action taken" />
 }
 
 function TraceLine({ entry }: { entry: TraceEntry }) {
   return (
     <div className="animate-in fade-in slide-in-from-bottom-1 grid grid-cols-[9.5rem_1fr] gap-3 py-1">
       <span className={cn('font-semibold', tagClass(entry))}>[{tagLabels[entry.tag]}]</span>
-      <span className="whitespace-pre-wrap text-slate-300">{entry.content}</span>
+      <span className="whitespace-pre-wrap text-[#eef6ec]">{entry.content}</span>
     </div>
   )
 }
@@ -306,15 +306,15 @@ function statusAfterMessage(message: ReasoningMessage): LotProcessingStatus {
 }
 
 function tagClass(entry: TraceEntry) {
-  if (entry.tag === 'OBSERVE') return 'text-blue-400'
+  if (entry.tag === 'OBSERVE') return 'text-[#b9d2ae]'
   if (entry.tag === 'POLICY_CHECK') return 'text-amber-300'
   if (entry.tag === 'ACTION') {
     const content = entry.content.toLowerCase()
     return content.includes('block') || content.includes('quarantine')
       ? 'text-red-400'
-      : 'text-emerald-300'
+      : 'text-[#d7e5d2]'
   }
-  return 'text-slate-100'
+  return 'text-white'
 }
 
 function parseReasoningMessage(value: unknown): ReasoningMessage | null {

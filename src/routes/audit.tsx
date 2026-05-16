@@ -84,25 +84,25 @@ function AuditLog() {
   }
 
   return (
-    <Card className="border-slate-800 bg-slate-950/70 shadow-2xl shadow-black/20">
+    <Card className="border-[#d7e5d2] bg-white/90 shadow-2xl shadow-[#123c2f]/10">
       <CardContent className="space-y-5 pt-0">
         <div className="flex items-center justify-between gap-4">
           <div className="relative w-[26rem]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#6f8b78]" />
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search medication or NemoClaw result"
-              className="h-10 w-full rounded-lg border border-slate-800 bg-slate-900 pl-9 pr-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/15"
+              className="h-10 w-full rounded-lg border border-[#d7e5d2] bg-white pl-9 pr-3 text-sm text-[#123c2f] outline-none transition placeholder:text-[#9aaf9a] focus:border-[#2f6b4f]/60 focus:ring-2 focus:ring-[#6f9d7a]/20"
             />
           </div>
           <div className="flex items-center gap-4">
-            <p className="text-sm text-slate-400">Showing {filteredRows.length} entries</p>
+            <p className="text-sm text-[#547765]">Showing {filteredRows.length} entries</p>
             <Button
               type="button"
               variant="outline"
               onClick={exportCsv}
-              className="border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800"
+              className="border-[#2f6b4f] bg-white text-[#123c2f] hover:bg-[#edf4ea]"
             >
               <Download className="size-4" />
               Export CSV
@@ -112,7 +112,7 @@ function AuditLog() {
 
         <Table>
           <TableHeader>
-            <TableRow className="border-slate-800 hover:bg-transparent">
+            <TableRow className="border-[#d7e5d2] hover:bg-transparent">
               <TableHead>Timestamp</TableHead>
               <TableHead>Medication</TableHead>
               <TableHead>Lot ID</TableHead>
@@ -129,32 +129,32 @@ function AuditLog() {
               <TableRow
                 key={row.id}
                 className={cn(
-                  'animate-in fade-in slide-in-from-top-2 border-slate-800/80 hover:bg-slate-900/70',
-                  freshIds.has(row.id) && 'bg-emerald-500/10 transition-colors duration-[2000ms]',
+                  'animate-in fade-in slide-in-from-top-2 border-[#d7e5d2]/80 hover:bg-[#f0f6ed]',
+                  freshIds.has(row.id) && 'bg-[#d7e5d2]/60 transition-colors duration-[2000ms]',
                 )}
               >
-                <TableCell className="font-mono text-xs text-slate-300">
+                <TableCell className="font-mono text-xs text-[#547765]">
                   {formatTime(row.timestamp)}
                 </TableCell>
-                <TableCell className="font-semibold text-slate-100">{row.medicationName}</TableCell>
-                <TableCell className="font-mono text-slate-300">{row.lotId}</TableCell>
-                <TableCell className="max-w-[18rem] whitespace-normal text-slate-300">
+                <TableCell className="font-semibold text-[#123c2f]">{row.medicationName}</TableCell>
+                <TableCell className="font-mono text-[#3f5f4e]">{row.lotId}</TableCell>
+                <TableCell className="max-w-[18rem] whitespace-normal text-[#3f5f4e]">
                   {row.proposedAction}
                 </TableCell>
                 <TableCell>
                   <NemoClawBadge result={row.nemoClawResult} />
                 </TableCell>
-                <TableCell className="max-w-[15rem] whitespace-normal text-slate-500">
+                <TableCell className="max-w-[15rem] whitespace-normal text-[#6f8b78]">
                   {row.blockReason || '-'}
                 </TableCell>
-                <TableCell className="font-mono text-xs text-slate-300">{row.toolCalled}</TableCell>
+                <TableCell className="font-mono text-xs text-[#3f5f4e]">{row.toolCalled}</TableCell>
                 <TableCell>
                   <Badge
                     variant="outline"
                     className={cn(
                       row.humanApprovalRequired
                         ? 'border-amber-500/40 bg-amber-500/15 text-amber-300'
-                        : 'border-slate-600 bg-slate-800 text-slate-300',
+                        : 'border-[#c7d8c2] bg-[#f7faf5] text-[#547765]',
                     )}
                   >
                     {row.humanApprovalRequired ? 'Yes' : 'No'}
@@ -163,7 +163,7 @@ function AuditLog() {
                 <TableCell>
                   <span
                     title={row.modelUsed}
-                    className="block max-w-[12rem] truncate font-mono text-xs text-slate-400"
+                    className="block max-w-[12rem] truncate font-mono text-xs text-[#547765]"
                   >
                     {row.modelUsed}
                   </span>
@@ -183,7 +183,7 @@ function NemoClawBadge({ result }: { result: NemoClawResult }) {
       variant="outline"
       className={cn(
         'font-mono',
-        result === 'PASS' && 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300',
+        result === 'PASS' && 'border-[#6f9d7a]/50 bg-[#edf4ea] text-[#2f6b4f]',
         result === 'BLOCK' && 'border-red-500/40 bg-red-500/15 text-red-300',
         result === 'APPROVAL REQUIRED' && 'border-amber-500/40 bg-amber-500/15 text-amber-300',
       )}

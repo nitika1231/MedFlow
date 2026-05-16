@@ -4,10 +4,11 @@ import type { ReactNode } from 'react'
 import {
   createRootRouteWithContext,
   HeadContent,
-  Outlet,
   Scripts,
 } from '@tanstack/react-router'
 
+import { MedFlowShell } from '@/components/medflow-shell'
+import { MedFlowProvider } from '@/lib/medflow-context'
 import appCss from '@/styles.css?url'
 
 type RouterContext = {
@@ -55,7 +56,9 @@ function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
+      <MedFlowProvider>
+        <MedFlowShell />
+      </MedFlowProvider>
     </QueryClientProvider>
   )
 }

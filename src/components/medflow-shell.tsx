@@ -21,8 +21,8 @@ export function MedFlowShell() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_20%_0%,rgba(16,185,129,0.16),transparent_28rem),radial-gradient(circle_at_80%_12%,rgba(59,130,246,0.14),transparent_26rem)]" />
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/88 backdrop-blur-xl">
+      <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_20%_0%,rgba(189,213,176,0.38),transparent_28rem),radial-gradient(circle_at_80%_12%,rgba(18,60,47,0.14),transparent_26rem)]" />
+      <header className="sticky top-0 z-40 border-b border-[#d7e5d2]/30 bg-[#123c2f]/95 backdrop-blur-xl">
         <div className="mx-auto flex h-20 max-w-[1440px] items-center gap-6 px-8">
           <Link to="/" className="text-2xl font-bold tracking-tight text-white">
             MedFlow
@@ -33,9 +33,9 @@ export function MedFlowShell() {
               <Link
                 key={item.to}
                 to={item.to}
-                className="rounded-full px-4 py-2 text-sm font-medium text-slate-400 transition hover:bg-white/5 hover:text-white"
+                className="rounded-full px-4 py-2 text-sm font-medium text-[#d7e5d2] transition hover:bg-white/10 hover:text-white"
                 activeProps={{
-                  className: 'bg-emerald-400/10 text-emerald-300 ring-1 ring-emerald-400/20',
+                  className: 'bg-white text-[#123c2f] ring-1 ring-[#d7e5d2]/60',
                 }}
               >
                 {item.label}
@@ -46,7 +46,7 @@ export function MedFlowShell() {
           <div className="flex items-center gap-3">
             <AgentStatusIndicator status={agentStatus} />
             <div
-              className="max-w-[19rem] truncate rounded-md border border-slate-700 bg-slate-900 px-3 py-2 font-mono text-xs text-slate-300"
+              className="max-w-[19rem] truncate rounded-md border border-[#d7e5d2]/40 bg-white/10 px-3 py-2 font-mono text-xs text-[#eef6ec]"
               title={MODEL_NAME}
             >
               {MODEL_NAME}
@@ -55,7 +55,7 @@ export function MedFlowShell() {
               onClick={runAgent}
               disabled={isAgentRunning}
               className={cn(
-                'h-11 bg-emerald-500 px-5 font-semibold text-slate-950 shadow-lg shadow-emerald-950/30 hover:bg-emerald-400 disabled:bg-emerald-500',
+                'h-11 bg-[#d7e5d2] px-5 font-semibold text-[#123c2f] shadow-lg shadow-[#0f2f26]/25 hover:bg-white disabled:bg-[#d7e5d2]',
                 isAgentRunning && 'animate-pulse',
               )}
             >
@@ -74,7 +74,7 @@ export function MedFlowShell() {
         <button
           type="button"
           onClick={resetDemo}
-          className="text-xs font-medium text-slate-500 underline-offset-4 transition hover:text-slate-300 hover:underline"
+          className="text-xs font-medium text-[#547765] underline-offset-4 transition hover:text-[#123c2f] hover:underline"
         >
           Reset for demo
         </button>
@@ -90,8 +90,8 @@ function AgentStatusIndicator({ status }: { status: 'idle' | 'running' | 'comple
     return (
       <StatusShell>
         <span className="relative flex size-2.5">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-          <span className="relative inline-flex size-2.5 rounded-full bg-emerald-400" />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#b9d2ae] opacity-75" />
+          <span className="relative inline-flex size-2.5 rounded-full bg-[#b9d2ae]" />
         </span>
         Agent running
       </StatusShell>
@@ -101,7 +101,7 @@ function AgentStatusIndicator({ status }: { status: 'idle' | 'running' | 'comple
   if (status === 'completed') {
     return (
       <StatusShell>
-        <CheckCircle2 className="size-4 text-sky-400" />
+        <CheckCircle2 className="size-4 text-[#d7e5d2]" />
         Agent completed
       </StatusShell>
     )
@@ -109,7 +109,7 @@ function AgentStatusIndicator({ status }: { status: 'idle' | 'running' | 'comple
 
   return (
     <StatusShell>
-      <span className="size-2.5 rounded-full bg-slate-500" />
+      <span className="size-2.5 rounded-full bg-[#9fb79a]" />
       Agent idle
     </StatusShell>
   )
@@ -117,7 +117,7 @@ function AgentStatusIndicator({ status }: { status: 'idle' | 'running' | 'comple
 
 function StatusShell({ children }: { children: ReactNode }) {
   return (
-    <div className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-300">
+    <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5d2]/40 bg-white/10 px-3 py-2 text-xs font-semibold text-[#eef6ec]">
       {children}
     </div>
   )
@@ -136,17 +136,17 @@ function ToastViewport({
         <div
           key={toast.id}
           className={cn(
-            'animate-in fade-in slide-in-from-bottom-2 flex items-start justify-between gap-3 rounded-xl border bg-slate-950/95 p-4 text-sm text-slate-100 shadow-2xl shadow-black/40 backdrop-blur',
-            toast.tone === 'success' && 'border-emerald-400/35',
+            'animate-in fade-in slide-in-from-bottom-2 flex items-start justify-between gap-3 rounded-xl border bg-white/95 p-4 text-sm text-[#123c2f] shadow-2xl shadow-[#123c2f]/15 backdrop-blur',
+            toast.tone === 'success' && 'border-[#6f9d7a]/50',
             toast.tone === 'warning' && 'border-amber-400/40',
             toast.tone === 'danger' && 'border-red-400/40',
-            toast.tone === 'default' && 'border-slate-700',
+            toast.tone === 'default' && 'border-[#d7e5d2]',
           )}
         >
           <p className="leading-5">{toast.message}</p>
           <button
             type="button"
-            className="rounded-md p-0.5 text-slate-500 transition hover:bg-white/10 hover:text-white"
+            className="rounded-md p-0.5 text-[#6f8b78] transition hover:bg-[#edf4ea] hover:text-[#123c2f]"
             onClick={() => onDismiss(toast.id)}
             aria-label="Dismiss notification"
           >

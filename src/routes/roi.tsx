@@ -28,72 +28,72 @@ function RoiDashboard() {
         <RoiKpi
           title="Units prevented (this run)"
           value={roiSummary.totalUnitsPreventedThisRun.toLocaleString()}
-          icon={<PackageCheck className="size-5 text-emerald-300" />}
+          icon={<PackageCheck className="size-5 text-[#2f6b4f]" />}
         />
         <RoiKpi
           title="Units prevented (all time)"
           value={roiSummary.totalUnitsPreventedAllTime.toLocaleString()}
-          icon={<Warehouse className="size-5 text-sky-300" />}
+          icon={<Warehouse className="size-5 text-[#123c2f]" />}
         />
         <RoiKpi
           title="Dollar value saved (this run)"
           value={formatCurrency(roiSummary.dollarValueSavedThisRun)}
-          icon={<DollarSign className="size-5 text-emerald-300" />}
+          icon={<DollarSign className="size-5 text-[#2f6b4f]" />}
         />
         <RoiKpi
           title="Dollar value saved (all time)"
           value={formatCurrency(roiSummary.dollarValueSavedAllTime)}
-          icon={<TrendingUp className="size-5 text-sky-300" />}
+          icon={<TrendingUp className="size-5 text-[#123c2f]" />}
         />
       </section>
 
-      <Card className="border-slate-800 bg-slate-950/70 shadow-2xl shadow-black/20">
-        <CardHeader className="border-b border-slate-800 pb-5">
-          <CardTitle className="text-lg text-white">Savings per agent run</CardTitle>
+      <Card className="border-[#d7e5d2] bg-white/90 shadow-2xl shadow-[#123c2f]/10">
+        <CardHeader className="border-b border-[#d7e5d2] pb-5">
+          <CardTitle className="text-lg text-[#123c2f]">Savings per agent run</CardTitle>
         </CardHeader>
         <CardContent className="h-[24rem] pt-6">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={roiSummary.savingsHistory} margin={{ top: 10, right: 18, left: 0, bottom: 6 }}>
-              <CartesianGrid stroke="#1f2937" vertical={false} />
+              <CartesianGrid stroke="#d7e5d2" vertical={false} />
               <XAxis
                 dataKey="run"
                 tickLine={false}
                 axisLine={false}
-                tick={{ fill: '#94a3b8', fontSize: 12 }}
+                tick={{ fill: '#547765', fontSize: 12 }}
               />
               <YAxis
                 tickLine={false}
                 axisLine={false}
-                tick={{ fill: '#94a3b8', fontSize: 12 }}
+                tick={{ fill: '#547765', fontSize: 12 }}
                 tickFormatter={(value) => `$${Number(value) / 1000}k`}
               />
               <Tooltip
-                cursor={{ fill: 'rgba(16,185,129,0.08)' }}
+                cursor={{ fill: 'rgba(111,157,122,0.12)' }}
                 contentStyle={{
-                  background: '#020617',
-                  border: '1px solid #1e293b',
+                  background: '#ffffff',
+                  border: '1px solid #d7e5d2',
                   borderRadius: '12px',
-                  color: '#e2e8f0',
+                  color: '#123c2f',
                 }}
                 formatter={(value) => [formatCurrency(Number(value)), 'Saved']}
               />
-              <Bar dataKey="dollarsSaved" fill="#34d399" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="dollarsSaved" fill="#2f6b4f" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
-      <section className="rounded-2xl border border-slate-800 border-l-4 border-l-emerald-400 bg-slate-950/80 p-8 shadow-2xl shadow-black/20">
-        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">
+      <section className="rounded-2xl border border-[#d7e5d2] border-l-4 border-l-[#2f6b4f] bg-white/90 p-8 shadow-2xl shadow-[#123c2f]/10">
+        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#6f8b78]">
           Annualized projection
         </p>
         <div className="mt-4 flex items-end gap-5">
-          <p className="text-6xl font-bold tracking-tight text-emerald-300">$380,000</p>
-          <p className="pb-2 text-xl font-semibold text-slate-200">
+          <p className="text-6xl font-bold tracking-tight text-[#2f6b4f]">$380,000</p>
+          <p className="pb-2 text-xl font-semibold text-[#123c2f]">
             projected annual waste prevention
           </p>
         </div>
-        <p className="mt-3 text-lg text-slate-400">
+        <p className="mt-3 text-lg text-[#547765]">
           Across a 500-bed hospital, MedFlow projects $380,000 in annual waste prevention.
         </p>
       </section>
@@ -111,16 +111,16 @@ function RoiKpi({
   icon: ReactNode
 }) {
   return (
-    <Card className="border-slate-800 bg-slate-950/70 shadow-2xl shadow-black/20">
+    <Card className="border-[#d7e5d2] bg-white/90 shadow-2xl shadow-[#123c2f]/10">
       <CardContent className="pt-0">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6f8b78]">
               {title}
             </p>
-            <p className="mt-3 text-2xl font-bold text-white">{value}</p>
+            <p className="mt-3 text-2xl font-bold text-[#123c2f]">{value}</p>
           </div>
-          <div className="rounded-xl border border-slate-800 bg-slate-900 p-3">{icon}</div>
+          <div className="rounded-xl border border-[#d7e5d2] bg-[#edf4ea] p-3">{icon}</div>
         </div>
       </CardContent>
     </Card>

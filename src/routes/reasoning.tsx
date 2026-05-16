@@ -32,7 +32,7 @@ const tagLabels: Record<TraceTag, string> = {
 }
 
 function AgentReasoning() {
-  const { inventory, runSequence } = useMedFlow()
+  const { inventory, runSequence, dataSources } = useMedFlow()
   const lots = useMemo(
     () =>
       mergeReasoningLots([
@@ -52,12 +52,16 @@ function AgentReasoning() {
   )
   const [socketConnected, setSocketConnected] = useState(false)
   const [streaming, setStreaming] = useState(true)
+  const [traceSource, setTraceSource] = useState<'waiting' | 'live' | 'demo'>('waiting')
   const [attempt, setAttempt] = useState(0)
+  const autoSelectTraceRef = useRef(true)
   const mockStartedRef = useRef(false)
+  const messageReceivedRef = useRef(false)
   const socketConnectedRef = useRef(false)
   const streamEndRef = useRef<HTMLDivElement | null>(null)
 
   const appendMessage = useCallback((message: ReasoningMessage) => {
+    messageReceivedRef.current = true
     setTraces((current) => ({
       ...current,
       [message.lot_id]: [
@@ -69,6 +73,10 @@ function AgentReasoning() {
         },
       ],
     }))
+    if (autoSelectTraceRef.current) {
+      setSelectedLotId(message.lot_id)
+      autoSelectTraceRef.current = false
+    }
     setLotStatuses((current) => ({
       ...current,
       [message.lot_id]: statusAfterMessage(message),
@@ -78,11 +86,13 @@ function AgentReasoning() {
   useEffect(() => {
     setTraces({})
     setLotStatuses(createInitialStatuses(lots))
-    setSelectedLotId(lots[0]?.id ?? '')
     setStreaming(true)
+    setTraceSource('waiting')
+    autoSelectTraceRef.current = true
     mockStartedRef.current = false
+    messageReceivedRef.current = false
     setAttempt((current) => current + 1)
-  }, [lots, runSequence])
+  }, [runSequence])
 
   useEffect(() => {
     if (!lots.some((lot) => lot.id === selectedLotId)) {
@@ -114,6 +124,7 @@ function AgentReasoning() {
       websocket.onmessage = (event) => {
         const message = parseReasoningMessage(event.data)
         if (message) {
+          setTraceSource('live')
           appendMessage(message)
         }
       }
@@ -123,7 +134,9 @@ function AgentReasoning() {
         socketConnectedRef.current = false
         setSocketConnected(false)
         reconnectTimer = window.setTimeout(() => {
-          setAttempt((current) => current + 1)
+          if (!mockStartedRef.current) {
+            setAttempt((current) => current + 1)
+          }
         }, 2_500)
       }
 
@@ -134,11 +147,12 @@ function AgentReasoning() {
 
     connect()
     fallbackTimer = window.setTimeout(() => {
-      if (!socketConnectedRef.current && !mockStartedRef.current) {
+      if (!messageReceivedRef.current && !mockStartedRef.current) {
         mockStartedRef.current = true
+        setTraceSource('demo')
         mockTimers = streamMockMessages(appendMessage, () => setStreaming(false))
       }
-    }, 1_000)
+    }, 1_200)
 
     return () => {
       closed = true
@@ -167,7 +181,13 @@ function AgentReasoning() {
             <div>
               <h1 className="text-lg font-semibold text-[#123c2f]">Medication lots</h1>
               <p className="mt-1 text-sm text-[#547765]">
-                Nemotron trace router · {socketConnected ? 'WebSocket live' : 'demo stream'}
+                {traceSource === 'live'
+                  ? 'Live trace from ws://localhost:8000/ws/agent-trace'
+                  : traceSource === 'demo'
+                    ? 'Demo trace preview; click Run Agent for live backend reasoning'
+                    : socketConnected
+                      ? 'Connected to backend trace stream; waiting for Run Agent'
+                      : 'Backend WebSocket unavailable; preparing demo trace'}
               </p>
             </div>
             <Badge
@@ -177,7 +197,13 @@ function AgentReasoning() {
                 socketConnected && 'border-[#6f9d7a]/50 text-[#2f6b4f]',
               )}
             >
-              {socketConnected ? 'connected' : 'mock'}
+              {traceSource === 'live'
+                ? 'WebSocket live'
+                : traceSource === 'demo'
+                  ? 'Demo trace'
+                  : socketConnected
+                    ? 'Connected'
+                    : 'Connecting'}
             </Badge>
           </div>
         </div>
@@ -213,7 +239,9 @@ function AgentReasoning() {
             <h2 className="font-mono text-sm font-semibold text-[#eef6ec]">
               {selectedLot?.medicationName} · {selectedLot?.lotNumber}
             </h2>
-            <p className="mt-1 font-mono text-xs text-[#b8cdb1]">agent-trace://{selectedLotId}</p>
+            <p className="mt-1 font-mono text-xs text-[#b8cdb1]">
+              agent-trace://{selectedLotId} · inventory source: {dataSources.inventory}
+            </p>
           </div>
           <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5d2]/30 bg-white/10 px-3 py-1.5 font-mono text-xs text-[#eef6ec]">
             <span className="size-2 rounded-full bg-[#b9d2ae]" />

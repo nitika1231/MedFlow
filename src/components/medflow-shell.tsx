@@ -35,7 +35,7 @@ export function MedFlowShell() {
                 to={item.to}
                 className="rounded-full px-4 py-2 text-sm font-medium text-[#d7e5d2] transition hover:bg-white/10 hover:text-white"
                 activeProps={{
-                  className: 'bg-white text-[#123c2f] ring-1 ring-[#d7e5d2]/60',
+                  className: 'bg-white text-[#0b2f25] ring-1 ring-[#d7e5d2]/60',
                 }}
               >
                 {item.label}

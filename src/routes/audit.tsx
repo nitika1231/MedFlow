@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { Download, Search } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { mockAuditLog, type AuditLogEntry, type NemoClawResult } from '@/lib/medflow-data'
+import { type AuditLogEntry, type NemoClawResult } from '@/lib/medflow-data'
 import { useMedFlow } from '@/lib/medflow-context'
 import { cn } from '@/lib/utils'
 
@@ -22,55 +22,66 @@ export const Route = createFileRoute('/audit')({
 })
 
 function AuditLog() {
-  const { auditLog, agentStatus, runSequence } = useMedFlow()
+  const { auditLog, dataSources } = useMedFlow()
   const [search, setSearch] = useState('')
-  const [rows, setRows] = useState<Array<AuditLogEntry>>(auditLog)
   const [freshIds, setFreshIds] = useState<Set<string>>(new Set())
+  const previousIdsRef = useRef<Set<string> | null>(null)
 
   useEffect(() => {
-    if (agentStatus !== 'running') {
-      setRows(auditLog)
+    const currentIds = new Set(auditLog.map((row) => row.id))
+    const previousIds = previousIdsRef.current
+    previousIdsRef.current = currentIds
+
+    if (!previousIds) {
       return
     }
 
-    setRows([])
-    setFreshIds(new Set())
-    const timers = mockAuditLog.map((entry, index) =>
+    const newIds = auditLog
+      .map((row) => row.id)
+      .filter((id) => !previousIds.has(id))
+
+    if (newIds.length === 0) {
+      return
+    }
+
+    setFreshIds((current) => {
+      const next = new Set(current)
+      newIds.forEach((id) => next.add(id))
+      return next
+    })
+
+    const timers = newIds.map((id) =>
       window.setTimeout(() => {
-        const liveEntry = {
-          ...entry,
-          id: `${entry.id}-run-${runSequence}`,
-          timestamp: new Date().toISOString(),
-        }
-        setRows((current) => [liveEntry, ...current])
-        setFreshIds((current) => new Set(current).add(liveEntry.id))
-        window.setTimeout(() => {
-          setFreshIds((current) => {
-            const next = new Set(current)
-            next.delete(liveEntry.id)
-            return next
-          })
-        }, 2_000)
-      }, 900 + index * 1_250),
+        setFreshIds((current) => {
+          const next = new Set(current)
+          next.delete(id)
+          return next
+        })
+      }, 2_000),
     )
 
     return () => {
       timers.forEach((timer) => window.clearTimeout(timer))
     }
-  }, [agentStatus, auditLog, runSequence])
+  }, [auditLog])
 
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase()
     if (!query) {
-      return rows
+      return auditLog
     }
 
-    return rows.filter(
+    return auditLog.filter(
       (row) =>
         row.medicationName.toLowerCase().includes(query) ||
         row.nemoClawResult.toLowerCase().includes(query),
     )
-  }, [rows, search])
+  }, [auditLog, search])
+
+  const sourceDescription =
+    dataSources.auditLog === 'Backend API'
+      ? 'Live rows from GET /api/audit-log. This reflects the latest recorded backend agent run.'
+      : 'Demo fallback rows are shown because GET /api/audit-log is not reachable.'
 
   function exportCsv() {
     const csv = toCsv(filteredRows)
@@ -110,6 +121,25 @@ function AuditLog() {
           </div>
         </div>
 
+        <div className="flex items-center justify-between rounded-xl border border-[#d7e5d2] bg-[#f7faf5] px-4 py-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6f8b78]">
+              Audit data source
+            </p>
+            <p className="mt-1 text-sm text-[#123c2f]">{sourceDescription}</p>
+          </div>
+          <Badge
+            variant="outline"
+            className={cn(
+              'border-[#c7d8c2] bg-white text-[#547765]',
+              dataSources.auditLog === 'Backend API' &&
+                'border-[#6f9d7a]/50 bg-[#edf4ea] text-[#2f6b4f]',
+            )}
+          >
+            {dataSources.auditLog}
+          </Badge>
+        </div>
+
         <Table>
           <TableHeader>
             <TableRow className="border-[#d7e5d2] hover:bg-transparent">
@@ -125,6 +155,13 @@ function AuditLog() {
             </TableRow>
           </TableHeader>
           <TableBody>
+            {filteredRows.length === 0 ? (
+              <TableRow className="border-[#d7e5d2]/80 hover:bg-transparent">
+                <TableCell colSpan={9} className="py-10 text-center text-[#547765]">
+                  No audit rows yet. Run the agent to create backend audit entries.
+                </TableCell>
+              </TableRow>
+            ) : null}
             {filteredRows.map((row) => (
               <TableRow
                 key={row.id}

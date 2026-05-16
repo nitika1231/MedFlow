@@ -36,6 +36,13 @@ type ToastMessage = {
   tone: ToastTone
 }
 
+type DataSources = {
+  inventory: string
+  auditLog: string
+  memory: string
+  roiSummary: string
+}
+
 type MedFlowContextValue = {
   agentStatus: AgentStatus
   runSequence: number
@@ -44,6 +51,7 @@ type MedFlowContextValue = {
   auditLog: Array<AuditLogEntry>
   memory: MemoryPatternsResponse
   roiSummary: RoiSummary
+  dataSources: DataSources
   toasts: Array<ToastMessage>
   runAgent: () => void
   resetDemo: () => void
@@ -188,6 +196,15 @@ export function MedFlowProvider({ children }: { children: ReactNode }) {
       auditLog: auditLogQuery.data,
       memory: memoryQuery.data,
       roiSummary: roiSummaryQuery.data,
+      dataSources: {
+        inventory:
+          inventoryQuery.data === mockInventory ? 'Demo fallback' : 'Backend API',
+        auditLog:
+          auditLogQuery.data === mockAuditLog ? 'Demo fallback' : 'Backend API',
+        memory: memoryQuery.data.isDemoFallback ? 'Demo fallback' : 'Backend API',
+        roiSummary:
+          roiSummaryQuery.data === mockRoiSummary ? 'Demo fallback' : 'Backend API',
+      },
       toasts,
       runAgent,
       resetDemo,

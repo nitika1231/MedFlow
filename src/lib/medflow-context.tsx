@@ -144,10 +144,10 @@ export function MedFlowProvider({ children }: { children: ReactNode }) {
       runTimersRef.current.push(timer)
     }
 
-    pushToast('Agent started — monitoring 6 lots', 'default')
-    schedule(2_000, '✓ Transfer approved — Cefazolin → Satellite Clinic', 'success')
-    schedule(3_600, '⚠ Lot quarantined — Insulin INS-8832', 'danger')
-    schedule(5_200, '⏳ Human approval required — Vincristine VIN-2291', 'warning')
+    pushToast('Agent started — loading the next backend inventory batch', 'default')
+    schedule(2_000, '✓ NemoClaw PASS — low-risk transfer can proceed', 'success')
+    schedule(3_600, '⚠ NemoClaw BLOCK — unsafe lot routed to quarantine', 'danger')
+    schedule(5_200, '⏳ NemoClaw APPROVAL REQUIRED — pharmacist review created', 'warning')
   }, [clearRunTimers, pushToast])
 
   const runAgent = useCallback(() => {
@@ -172,7 +172,7 @@ export function MedFlowProvider({ children }: { children: ReactNode }) {
         queryClient.invalidateQueries({ queryKey: ['medflow', 'memory-patterns'] }),
       ])
       setAgentStatus('completed')
-      pushToast('Agent run complete — 3 actions taken', 'success')
+      pushToast('Agent run complete — audit and ROI updated from backend run', 'success')
     })()
   }, [queryClient, pushToast, scheduleRunToasts])
 

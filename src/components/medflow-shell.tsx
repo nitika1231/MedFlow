@@ -3,7 +3,6 @@ import { CheckCircle2, Play, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { MODEL_NAME } from '@/lib/medflow-data'
 import { useMedFlow } from '@/lib/medflow-context'
 import { cn } from '@/lib/utils'
 
@@ -45,12 +44,6 @@ export function MedFlowShell() {
 
           <div className="flex items-center gap-3">
             <AgentStatusIndicator status={agentStatus} />
-            <div
-              className="max-w-[19rem] truncate rounded-md border border-[#d7e5d2]/40 bg-white/10 px-3 py-2 font-mono text-xs text-[#eef6ec]"
-              title={MODEL_NAME}
-            >
-              {MODEL_NAME}
-            </div>
             <Button
               onClick={runAgent}
               disabled={isAgentRunning}

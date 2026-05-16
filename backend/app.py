@@ -9,7 +9,7 @@ import re
 import sqlite3
 import uuid
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Literal
@@ -1501,6 +1501,342 @@ def sample_lots() -> list[MedicationLot]:
     ]
 
 
+def demo_date(days_from_today: int) -> date:
+    return date.today() + timedelta(days=days_from_today)
+
+
+def dashboard_demo_lots(run_index: int) -> list[MedicationLot]:
+    """Rotating dashboard batches make repeated frontend demos explainable."""
+    scenario = run_index % 4
+    batches = [
+        [
+            {
+                "lot_id": "CEF-4421",
+                "medication_name": "Cefazolin",
+                "ndc": "00143-9924-90",
+                "location_id": "main-hospital",
+                "location_name": "Main Hospital",
+                "quantity": 40,
+                "expiration_date": demo_date(8),
+                "demand_7d": 6,
+                "demand_30d": 20,
+                "unit_value_usd": 80,
+            },
+            {
+                "lot_id": "INS-8832",
+                "medication_name": "Insulin (Humalog)",
+                "ndc": "00002-7510-01",
+                "location_id": "main-hospital",
+                "location_name": "Main Hospital",
+                "quantity": 60,
+                "expiration_date": demo_date(10),
+                "demand_7d": 15,
+                "demand_30d": 58,
+                "unit_value_usd": 70,
+                "temperature_logs": [TemperatureReading(timestamp=now_utc(), celsius=12.2)],
+            },
+            {
+                "lot_id": "VIN-2291",
+                "medication_name": "Vincristine",
+                "ndc": "61703-309-16",
+                "location_id": "cancer-center",
+                "location_name": "Cancer Center",
+                "quantity": 15,
+                "expiration_date": demo_date(12),
+                "demand_7d": 1,
+                "demand_30d": 5,
+                "unit_value_usd": 520,
+            },
+            {
+                "lot_id": "AMX-5512",
+                "medication_name": "Amoxicillin",
+                "ndc": "00093-2263-01",
+                "location_id": "satellite-clinic",
+                "location_name": "Satellite Clinic",
+                "quantity": 120,
+                "expiration_date": demo_date(30),
+                "demand_7d": 34,
+                "demand_30d": 142,
+                "unit_value_usd": 12,
+            },
+            {
+                "lot_id": "MET-3301",
+                "medication_name": "Metformin",
+                "ndc": "00093-1048-01",
+                "location_id": "main-hospital",
+                "location_name": "Main Hospital",
+                "quantity": 200,
+                "expiration_date": demo_date(45),
+                "demand_7d": 22,
+                "demand_30d": 82,
+                "unit_value_usd": 8,
+            },
+            {
+                "lot_id": "LIS-7743",
+                "medication_name": "Lisinopril",
+                "ndc": "68180-980-03",
+                "location_id": "satellite-clinic",
+                "location_name": "Satellite Clinic",
+                "quantity": 80,
+                "expiration_date": demo_date(20),
+                "demand_7d": 4,
+                "demand_30d": 18,
+                "unit_value_usd": 10,
+            },
+        ],
+        [
+            {
+                "lot_id": "PIP-1028",
+                "medication_name": "Piperacillin-Tazobactam",
+                "ndc": "63323-002-20",
+                "location_id": "main-hospital",
+                "location_name": "Main Hospital",
+                "quantity": 32,
+                "expiration_date": demo_date(6),
+                "demand_7d": 3,
+                "demand_30d": 12,
+                "unit_value_usd": 155,
+            },
+            {
+                "lot_id": "ENO-7710",
+                "medication_name": "Enoxaparin",
+                "ndc": "81952-123-23",
+                "location_id": "satellite-clinic",
+                "location_name": "Satellite Clinic",
+                "quantity": 90,
+                "expiration_date": demo_date(18),
+                "demand_7d": 20,
+                "demand_30d": 84,
+                "unit_value_usd": 42,
+            },
+            {
+                "lot_id": "NIV-5034",
+                "medication_name": "Nivolumab",
+                "ndc": "00003-3774-12",
+                "location_id": "cancer-center",
+                "location_name": "Cancer Center",
+                "quantity": 9,
+                "expiration_date": demo_date(16),
+                "demand_7d": 1,
+                "demand_30d": 3,
+                "unit_value_usd": 1150,
+            },
+            {
+                "lot_id": "VAN-4109",
+                "medication_name": "Vancomycin",
+                "ndc": "67457-823-99",
+                "location_id": "main-hospital",
+                "location_name": "Main Hospital",
+                "quantity": 75,
+                "expiration_date": demo_date(11),
+                "demand_7d": 18,
+                "demand_30d": 76,
+                "unit_value_usd": 38,
+            },
+            {
+                "lot_id": "LEV-9022",
+                "medication_name": "Levetiracetam",
+                "ndc": "68180-115-07",
+                "location_id": "satellite-clinic",
+                "location_name": "Satellite Clinic",
+                "quantity": 130,
+                "expiration_date": demo_date(55),
+                "demand_7d": 15,
+                "demand_30d": 64,
+                "unit_value_usd": 14,
+            },
+            {
+                "lot_id": "ROC-1187",
+                "medication_name": "Rocuronium",
+                "ndc": "0409-9558-10",
+                "location_id": "main-hospital",
+                "location_name": "Main Hospital",
+                "quantity": 48,
+                "expiration_date": demo_date(24),
+                "demand_7d": 11,
+                "demand_30d": 47,
+                "unit_value_usd": 22,
+                "temperature_logs": [TemperatureReading(timestamp=now_utc(), celsius=11.0)],
+            },
+        ],
+        [
+            {
+                "lot_id": "MER-6801",
+                "medication_name": "Meropenem",
+                "ndc": "63323-507-20",
+                "location_id": "main-hospital",
+                "location_name": "Main Hospital",
+                "quantity": 58,
+                "expiration_date": demo_date(9),
+                "demand_7d": 8,
+                "demand_30d": 28,
+                "unit_value_usd": 96,
+            },
+            {
+                "lot_id": "PAN-3345",
+                "medication_name": "Pantoprazole IV",
+                "ndc": "0143-9510-10",
+                "location_id": "satellite-clinic",
+                "location_name": "Satellite Clinic",
+                "quantity": 210,
+                "expiration_date": demo_date(38),
+                "demand_7d": 32,
+                "demand_30d": 132,
+                "unit_value_usd": 7,
+            },
+            {
+                "lot_id": "RIT-7788",
+                "medication_name": "Rituximab",
+                "ndc": "50242-051-21",
+                "location_id": "cancer-center",
+                "location_name": "Cancer Center",
+                "quantity": 6,
+                "expiration_date": demo_date(13),
+                "demand_7d": 1,
+                "demand_30d": 2,
+                "unit_value_usd": 2100,
+            },
+            {
+                "lot_id": "VAS-5572",
+                "medication_name": "Vasopressin",
+                "ndc": "42023-164-10",
+                "location_id": "main-hospital",
+                "location_name": "Main Hospital",
+                "quantity": 44,
+                "expiration_date": demo_date(5),
+                "demand_7d": 6,
+                "demand_30d": 22,
+                "unit_value_usd": 125,
+            },
+            {
+                "lot_id": "ALB-9001",
+                "medication_name": "Albumin 25%",
+                "ndc": "68516-5216-2",
+                "location_id": "main-hospital",
+                "location_name": "Main Hospital",
+                "quantity": 68,
+                "expiration_date": demo_date(28),
+                "demand_7d": 20,
+                "demand_30d": 88,
+                "unit_value_usd": 63,
+            },
+            {
+                "lot_id": "HEP-6120",
+                "medication_name": "Heparin",
+                "ndc": "63323-047-10",
+                "location_id": "satellite-clinic",
+                "location_name": "Satellite Clinic",
+                "quantity": 95,
+                "expiration_date": demo_date(21),
+                "demand_7d": 7,
+                "demand_30d": 25,
+                "unit_value_usd": 18,
+            },
+        ],
+        [
+            {
+                "lot_id": "CEF-9914",
+                "medication_name": "Cefepime",
+                "ndc": "63323-280-20",
+                "location_id": "main-hospital",
+                "location_name": "Main Hospital",
+                "quantity": 52,
+                "expiration_date": demo_date(7),
+                "demand_7d": 7,
+                "demand_30d": 24,
+                "unit_value_usd": 72,
+            },
+            {
+                "lot_id": "DEX-3120",
+                "medication_name": "Dexmedetomidine",
+                "ndc": "63323-165-10",
+                "location_id": "main-hospital",
+                "location_name": "Main Hospital",
+                "quantity": 36,
+                "expiration_date": demo_date(19),
+                "demand_7d": 9,
+                "demand_30d": 36,
+                "unit_value_usd": 185,
+                "temperature_logs": [TemperatureReading(timestamp=now_utc(), celsius=0.8)],
+            },
+            {
+                "lot_id": "PEM-8470",
+                "medication_name": "Pembrolizumab",
+                "ndc": "00006-3029-02",
+                "location_id": "cancer-center",
+                "location_name": "Cancer Center",
+                "quantity": 8,
+                "expiration_date": demo_date(14),
+                "demand_7d": 1,
+                "demand_30d": 3,
+                "unit_value_usd": 1760,
+            },
+            {
+                "lot_id": "AZI-2404",
+                "medication_name": "Azithromycin IV",
+                "ndc": "60505-6154-0",
+                "location_id": "satellite-clinic",
+                "location_name": "Satellite Clinic",
+                "quantity": 88,
+                "expiration_date": demo_date(34),
+                "demand_7d": 21,
+                "demand_30d": 95,
+                "unit_value_usd": 16,
+            },
+            {
+                "lot_id": "MOR-2290",
+                "medication_name": "Morphine PF",
+                "ndc": "0409-1255-30",
+                "location_id": "main-hospital",
+                "location_name": "Main Hospital",
+                "quantity": 140,
+                "expiration_date": demo_date(60),
+                "demand_7d": 12,
+                "demand_30d": 52,
+                "unit_value_usd": 9,
+                "controlled_substance": True,
+            },
+            {
+                "lot_id": "OND-4771",
+                "medication_name": "Ondansetron",
+                "ndc": "0641-6078-25",
+                "location_id": "satellite-clinic",
+                "location_name": "Satellite Clinic",
+                "quantity": 160,
+                "expiration_date": demo_date(26),
+                "demand_7d": 26,
+                "demand_30d": 112,
+                "unit_value_usd": 6,
+            },
+        ],
+    ]
+
+    defaults: dict[str, Any] = {
+        "recall_status": RecallStatus.NONE,
+        "temperature_logs": [],
+        "storage_min_c": 2,
+        "storage_max_c": 8,
+        "controlled_substance": False,
+    }
+    return [MedicationLot(**(defaults | lot)) for lot in batches[scenario]]
+
+
+def next_dashboard_demo_run_index() -> int:
+    dashboard_runs = [
+        run
+        for run in service.memory.recent_runs(100)
+        if str(run.get("source", "")).startswith("frontend-dashboard")
+    ]
+    return len(dashboard_runs)
+
+
+def lot_from_observation(data: dict[str, Any]) -> MedicationLot | None:
+    try:
+        return MedicationLot.model_validate(data)
+    except ValidationError:
+        return None
+
+
 settings = AgentSettings.from_env()
 service = PharmacyAgentService(settings)
 
@@ -1550,6 +1886,17 @@ async def current_inventory_lots() -> list[MedicationLot]:
         return await service.ingestion.pull_live_data()
     except Exception:
         return sample_lots()
+
+
+def lots_from_run_detail(detail: dict[str, Any] | None) -> list[MedicationLot]:
+    if not detail:
+        return []
+    lots: list[MedicationLot] = []
+    for row in detail.get("observations", []):
+        data = row.get("data")
+        if isinstance(data, dict) and (lot := lot_from_observation(data)):
+            lots.append(lot)
+    return lots
 
 
 def latest_run_detail() -> dict[str, Any] | None:
@@ -1835,10 +2182,13 @@ async def run_agent_live() -> AgentRunResponse:
 
 @app.post("/api/run-agent", response_model=AgentRunResponse)
 async def api_run_agent(request: AgentRunRequest | None = None) -> AgentRunResponse:
-    run_request = request or AgentRunRequest(
-        source="frontend-dashboard",
-        use_live_source=True,
-    )
+    run_request = request or AgentRunRequest(source="frontend-dashboard")
+    if run_request.lots is None and not settings.pharmacy_data_url:
+        run_request = AgentRunRequest(
+            source=run_request.source or "frontend-dashboard",
+            lots=dashboard_demo_lots(next_dashboard_demo_run_index()),
+            use_live_source=False,
+        )
     return await service.run(run_request, trace_callback=trace_hub.broadcast)
 
 
@@ -1847,7 +2197,13 @@ async def api_inventory() -> list[dict[str, Any]]:
     detail = latest_run_detail()
     policies = latest_policy_by_lot(detail)
     tool_names = latest_tool_names_by_lot(detail)
-    lots = await current_inventory_lots()
+    lots = lots_from_run_detail(detail)
+    if not lots:
+        lots = (
+            await current_inventory_lots()
+            if settings.pharmacy_data_url
+            else dashboard_demo_lots(next_dashboard_demo_run_index())
+        )
     return [
         inventory_lot_for_dashboard(
             lot,

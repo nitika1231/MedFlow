@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { type AuditLogEntry, type NemoClawResult } from '@/lib/medflow-data'
+import { MODEL_NAME, type AuditLogEntry, type NemoClawResult } from '@/lib/medflow-data'
 import { useMedFlow } from '@/lib/medflow-context'
 import { cn } from '@/lib/utils'
 
@@ -124,9 +124,14 @@ function AuditLog() {
         <div className="flex items-center justify-between rounded-xl border border-[#d7e5d2] bg-[#f7faf5] px-4 py-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6f8b78]">
-              Audit data source
+              Audit data source and NemoClaw meaning
             </p>
             <p className="mt-1 text-sm text-[#123c2f]">{sourceDescription}</p>
+            <p className="mt-1 text-sm text-[#547765]">
+              NemoClaw is the policy gate: PASS allows an autonomous tool call, BLOCK
+              prevents unsafe action and records the reason, APPROVAL REQUIRED creates a
+              human pharmacist review step.
+            </p>
           </div>
           <Badge
             variant="outline"
@@ -209,6 +214,9 @@ function AuditLog() {
             ))}
           </TableBody>
         </Table>
+        <p className="border-t border-[#d7e5d2] pt-3 text-xs text-[#6f8b78]">
+          Powered by Nemotron reasoning and NemoClaw policy checks · {MODEL_NAME}
+        </p>
       </CardContent>
     </Card>
   )

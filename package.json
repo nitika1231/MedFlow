@@ -1,0 +1,43 @@
+{
+  "name": "medflow",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "typecheck": "tsc --noEmit",
+    "test:backend": "MOCK_NEMOTRON=true python3 -m unittest discover -s backend/tests"
+  },
+  "dependencies": {
+    "@radix-ui/react-slot": "latest",
+    "@tanstack/react-query": "latest",
+    "@tanstack/react-router": "latest",
+    "@tanstack/react-start": "latest",
+    "class-variance-authority": "latest",
+    "clsx": "latest",
+    "lucide-react": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "tailwind-merge": "latest",
+    "tw-animate-css": "latest"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "latest",
+    "@lovable.dev/vite-tanstack-config": "latest",
+    "@tailwindcss/vite": "latest",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "@vitejs/plugin-react": "^5.2.0",
+    "tailwindcss": "latest",
+    "typescript": "latest",
+    "vite": "^7.2.4",
+    "vite-tsconfig-paths": "latest",
+    "wrangler": "latest"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

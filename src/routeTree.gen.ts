@@ -9,12 +9,27 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as RoiRouteImport } from './routes/roi'
+import { Route as ReasoningRouteImport } from './routes/reasoning'
+import { Route as MemoryRouteImport } from './routes/memory'
 import { Route as AuditRouteImport } from './routes/audit'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as MemoryRouteImport } from './routes/memory'
-import { Route as ReasoningRouteImport } from './routes/reasoning'
-import { Route as RoiRouteImport } from './routes/roi'
 
+const RoiRoute = RoiRouteImport.update({
+  id: '/roi',
+  path: '/roi',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReasoningRoute = ReasoningRouteImport.update({
+  id: '/reasoning',
+  path: '/reasoning',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MemoryRoute = MemoryRouteImport.update({
+  id: '/memory',
+  path: '/memory',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuditRoute = AuditRouteImport.update({
   id: '/audit',
   path: '/audit',
@@ -25,55 +40,40 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MemoryRoute = MemoryRouteImport.update({
-  id: '/memory',
-  path: '/memory',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReasoningRoute = ReasoningRouteImport.update({
-  id: '/reasoning',
-  path: '/reasoning',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RoiRoute = RoiRouteImport.update({
-  id: '/roi',
-  path: '/roi',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
-  '/audit': typeof AuditRoute
   '/': typeof IndexRoute
+  '/audit': typeof AuditRoute
   '/memory': typeof MemoryRoute
   '/reasoning': typeof ReasoningRoute
   '/roi': typeof RoiRoute
 }
 export interface FileRoutesByTo {
-  '/audit': typeof AuditRoute
   '/': typeof IndexRoute
+  '/audit': typeof AuditRoute
   '/memory': typeof MemoryRoute
   '/reasoning': typeof ReasoningRoute
   '/roi': typeof RoiRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/audit': typeof AuditRoute
   '/': typeof IndexRoute
+  '/audit': typeof AuditRoute
   '/memory': typeof MemoryRoute
   '/reasoning': typeof ReasoningRoute
   '/roi': typeof RoiRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/audit' | '/' | '/memory' | '/reasoning' | '/roi'
+  fullPaths: '/' | '/audit' | '/memory' | '/reasoning' | '/roi'
   fileRoutesByTo: FileRoutesByTo
-  to: '/audit' | '/' | '/memory' | '/reasoning' | '/roi'
-  id: '__root__' | '/audit' | '/' | '/memory' | '/reasoning' | '/roi'
+  to: '/' | '/audit' | '/memory' | '/reasoning' | '/roi'
+  id: '__root__' | '/' | '/audit' | '/memory' | '/reasoning' | '/roi'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  AuditRoute: typeof AuditRoute
   IndexRoute: typeof IndexRoute
+  AuditRoute: typeof AuditRoute
   MemoryRoute: typeof MemoryRoute
   ReasoningRoute: typeof ReasoningRoute
   RoiRoute: typeof RoiRoute
@@ -81,6 +81,27 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/roi': {
+      id: '/roi'
+      path: '/roi'
+      fullPath: '/roi'
+      preLoaderRoute: typeof RoiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reasoning': {
+      id: '/reasoning'
+      path: '/reasoning'
+      fullPath: '/reasoning'
+      preLoaderRoute: typeof ReasoningRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/memory': {
+      id: '/memory'
+      path: '/memory'
+      fullPath: '/memory'
+      preLoaderRoute: typeof MemoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/audit': {
       id: '/audit'
       path: '/audit'
@@ -95,33 +116,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/memory': {
-      id: '/memory'
-      path: '/memory'
-      fullPath: '/memory'
-      preLoaderRoute: typeof MemoryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reasoning': {
-      id: '/reasoning'
-      path: '/reasoning'
-      fullPath: '/reasoning'
-      preLoaderRoute: typeof ReasoningRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/roi': {
-      id: '/roi'
-      path: '/roi'
-      fullPath: '/roi'
-      preLoaderRoute: typeof RoiRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  AuditRoute: AuditRoute,
   IndexRoute: IndexRoute,
+  AuditRoute: AuditRoute,
   MemoryRoute: MemoryRoute,
   ReasoningRoute: ReasoningRoute,
   RoiRoute: RoiRoute,

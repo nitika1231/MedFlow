@@ -16,7 +16,7 @@ import {
   Truck,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -30,12 +30,10 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import {
-  notifyPharmacist,
-  quarantineLot,
-  requestHumanApproval,
-  transferInventory,
+  type BackendAgentRun,
+  getBackendHealth,
+  runBackendAgent,
   type ToolResult,
-  updateReorderRecommendation,
 } from '@/lib/medflow.functions'
 import { cn } from '@/lib/utils'
 
@@ -71,6 +69,11 @@ type AuditRow = {
   tools: string
   finalStatus: string
   variant: RiskVariant
+}
+
+type DashboardToolResult = Omit<ToolResult, 'status'> & {
+  status: ToolResult['status'] | 'executed' | 'skipped' | 'failed' | string
+  raw?: unknown
 }
 
 const medicationLots: Array<MedicationLot> = [
@@ -217,21 +220,32 @@ const auditRows: Array<AuditRow> = [
 ]
 
 function MedFlowDashboard() {
+  const getBackendHealthFn = useServerFn(getBackendHealth)
+  const runBackendAgentFn = useServerFn(runBackendAgent)
   const lotsQuery = useQuery({
     queryKey: ['medflow-lots'],
     queryFn: async () => medicationLots,
     initialData: medicationLots,
   })
-  const transferInventoryFn = useServerFn(transferInventory)
-  const quarantineLotFn = useServerFn(quarantineLot)
-  const notifyPharmacistFn = useServerFn(notifyPharmacist)
-  const requestHumanApprovalFn = useServerFn(requestHumanApproval)
-  const updateReorderRecommendationFn = useServerFn(updateReorderRecommendation)
+  const backendHealthQuery = useQuery({
+    queryKey: ['backend-health'],
+    queryFn: () => getBackendHealthFn(),
+    retry: false,
+    refetchInterval: 15_000,
+  })
   const [running, setRunning] = useState(false)
   const [visibleSteps, setVisibleSteps] = useState(0)
   const [done, setDone] = useState(false)
-  const [toolResults, setToolResults] = useState<Array<ToolResult>>([])
-  const toolCallsStarted = useRef(false)
+  const [toolResults, setToolResults] = useState<Array<DashboardToolResult>>([])
+  const [backendRun, setBackendRun] = useState<BackendAgentRun | null>(null)
+  const [backendError, setBackendError] = useState<string | null>(null)
+  const [backendPending, setBackendPending] = useState(false)
+  const displayedLots = backendRun
+    ? backendRun.evaluations.map(evaluationToMedicationLot)
+    : lotsQuery.data
+  const displayedAuditRows = backendRun
+    ? backendRun.evaluations.map(evaluationToAuditRow)
+    : auditRows
 
   useEffect(() => {
     if (!running || visibleSteps >= agentSteps.length) {
@@ -249,54 +263,34 @@ function MedFlowDashboard() {
     return () => window.clearTimeout(timer)
   }, [running, visibleSteps])
 
-  useEffect(() => {
-    if (!done || toolCallsStarted.current) {
-      return
-    }
-
-    toolCallsStarted.current = true
-    Promise.all([
-      transferInventoryFn({
-        data: {
-          medication: 'Cefazolin 1g vial',
-          units: 24,
-          destination: 'North Oncology Satellite',
-        },
-      }),
-      quarantineLotFn({ data: { medication: 'Insulin glargine pen' } }),
-      notifyPharmacistFn({
-        data: {
-          message:
-            'Insulin glargine pen lot quarantined after 12.4 C temperature excursion.',
-        },
-      }),
-      requestHumanApprovalFn({
-        data: {
-          action: 'Approve Oncology Med transfer or reorder intervention.',
-        },
-      }),
-      updateReorderRecommendationFn({
-        data: {
-          medication: 'Cefazolin 1g vial',
-          percentage: -15,
-        },
-      }),
-    ]).then((results) => setToolResults(results as Array<ToolResult>))
-  }, [
-    done,
-    notifyPharmacistFn,
-    quarantineLotFn,
-    requestHumanApprovalFn,
-    transferInventoryFn,
-    updateReorderRecommendationFn,
-  ])
-
   function runAgent() {
-    toolCallsStarted.current = false
     setToolResults([])
+    setBackendRun(null)
+    setBackendError(null)
+    setBackendPending(true)
     setDone(false)
     setVisibleSteps(0)
     setRunning(true)
+    runBackendAgentFn({
+      data: {
+        source: 'frontend-dashboard',
+        use_live_source: true,
+      },
+    })
+      .then((run) => {
+        setBackendRun(run)
+        setToolResults(flattenBackendToolResults(run))
+      })
+      .catch((error: unknown) => {
+        setBackendError(
+          error instanceof Error
+            ? error.message
+            : 'Could not reach the MedFlow backend.',
+        )
+      })
+      .finally(() => {
+        setBackendPending(false)
+      })
   }
 
   return (
@@ -315,10 +309,26 @@ function MedFlowDashboard() {
               Autonomous expiration and recall prevention agent for hospital
               pharmacies.
             </p>
+            <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+              <BackendStatusBadge
+                connected={backendHealthQuery.isSuccess}
+                loading={backendHealthQuery.isLoading}
+              />
+              {backendHealthQuery.data ? (
+                <span className="text-muted-foreground">
+                  FastAPI backend live · Nemotron{' '}
+                  {backendHealthQuery.data.nemotron_enabled ? 'enabled' : 'mocked'}
+                </span>
+              ) : (
+                <span className="text-muted-foreground">
+                  Start the backend on port 8000 before running the real agent.
+                </span>
+              )}
+            </div>
           </div>
-          <Button size="lg" onClick={runAgent} disabled={running}>
+          <Button size="lg" onClick={runAgent} disabled={running || backendPending}>
             {running ? <Clock3 className="animate-spin" /> : <Play />}
-            {running ? 'Agent Running...' : 'Run MedFlow Agent'}
+            {running || backendPending ? 'Agent Running...' : 'Run MedFlow Agent'}
           </Button>
         </header>
 
@@ -343,7 +353,7 @@ function MedFlowDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {lotsQuery.data.map((lot) => (
+                  {displayedLots.map((lot) => (
                     <TableRow key={lot.medication}>
                       <TableCell className="font-medium">{lot.medication}</TableCell>
                       <TableCell>{lot.location}</TableCell>
@@ -366,12 +376,22 @@ function MedFlowDashboard() {
             running={running}
             done={done}
             visibleSteps={visibleSteps}
+            backendPending={backendPending}
+            backendError={backendError}
+            backendRun={backendRun}
           />
         </section>
 
         <section className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
-          <AuditCard toolResults={toolResults} done={done} />
-          <MemoryCard done={done} />
+          <AuditCard
+            rows={displayedAuditRows}
+            toolResults={toolResults}
+            done={done}
+            backendPending={backendPending}
+            backendError={backendError}
+            backendRun={backendRun}
+          />
+          <MemoryCard done={done} backendRun={backendRun} />
         </section>
       </div>
     </main>
@@ -382,10 +402,16 @@ function AgentLogCard({
   running,
   done,
   visibleSteps,
+  backendPending,
+  backendError,
+  backendRun,
 }: {
   running: boolean
   done: boolean
   visibleSteps: number
+  backendPending: boolean
+  backendError: string | null
+  backendRun: BackendAgentRun | null
 }) {
   const visible = agentSteps.slice(0, visibleSteps)
 
@@ -412,6 +438,24 @@ function AgentLogCard({
             <div className="flex items-center gap-3 rounded-lg border bg-success/10 p-3 text-sm font-medium text-success">
               <CheckCircle2 className="size-5" />
               Agent run complete. Tool call results are available in the audit log.
+            </div>
+          ) : null}
+          {backendPending ? (
+            <div className="flex items-center gap-3 rounded-lg border bg-brand/10 p-3 text-sm font-medium text-brand">
+              <Clock3 className="size-5 animate-spin" />
+              Calling FastAPI backend /agent/run...
+            </div>
+          ) : null}
+          {backendRun ? (
+            <div className="rounded-lg border bg-success/10 p-3 text-sm text-success">
+              <p className="font-semibold">Backend run received</p>
+              <p className="mt-1 font-mono text-xs">{backendRun.run_id}</p>
+            </div>
+          ) : null}
+          {backendError ? (
+            <div className="rounded-lg border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
+              <p className="font-semibold">Backend call failed</p>
+              <p className="mt-1 text-xs">{backendError}</p>
             </div>
           ) : null}
         </div>
@@ -447,11 +491,19 @@ function AgentStepRow({ step, index }: { step: AgentStep; index: number }) {
 }
 
 function AuditCard({
+  rows,
   toolResults,
   done,
+  backendPending,
+  backendError,
+  backendRun,
 }: {
-  toolResults: Array<ToolResult>
+  rows: Array<AuditRow>
+  toolResults: Array<DashboardToolResult>
   done: boolean
+  backendPending: boolean
+  backendError: string | null
+  backendRun: BackendAgentRun | null
 }) {
   return (
     <Card>
@@ -462,8 +514,24 @@ function AuditCard({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-muted/30 p-3 text-sm">
+          <Badge variant={backendRun ? 'success' : backendError ? 'danger' : 'muted'}>
+            {backendRun
+              ? 'connected to FastAPI'
+              : backendPending
+                ? 'calling backend'
+                : backendError
+                  ? 'backend error'
+                  : 'demo data'}
+          </Badge>
+          <span className="text-muted-foreground">
+            {backendRun
+              ? `Run ${backendRun.run_id} returned ${backendRun.evaluations.length} evaluations.`
+              : 'Audit rows will switch from demo data to backend output after a successful run.'}
+          </span>
+        </div>
         <div className="space-y-3">
-          {auditRows.map((row) => (
+          {rows.map((row) => (
             <AuditRow key={row.medication} row={row} />
           ))}
         </div>
@@ -472,7 +540,11 @@ function AuditCard({
           <div className="mb-3 flex items-center justify-between">
             <h3 className="font-semibold">Tool Call Results</h3>
             <Badge variant={done ? 'success' : 'muted'}>
-              {done ? `${toolResults.length}/5 complete` : 'waiting'}
+              {backendRun
+                ? `${toolResults.length} backend calls`
+                : done
+                  ? `${toolResults.length}/5 complete`
+                  : 'waiting'}
             </Badge>
           </div>
           {toolResults.length === 0 ? (
@@ -531,7 +603,20 @@ function AuditField({ label, value }: { label: string; value: string }) {
   )
 }
 
-function MemoryCard({ done }: { done: boolean }) {
+function MemoryCard({
+  done,
+  backendRun,
+}: {
+  done: boolean
+  backendRun: BackendAgentRun | null
+}) {
+  const pattern = backendRun?.recurring_waste_patterns[0]
+  const patternText = pattern
+    ? `${String(pattern.medication_name ?? 'Medication')} at ${String(
+        pattern.location_id ?? 'unknown location',
+      )} triggered ${String(pattern.latest_signal ?? 'a recurring waste signal')}.`
+    : 'Main Hospital overstocked Cefazolin 3x across recent audit runs.'
+
   return (
     <Card>
       <CardHeader>
@@ -547,7 +632,7 @@ function MemoryCard({ done }: { done: boolean }) {
             Pattern detected
           </div>
           <p className="mt-2 text-sm text-muted-foreground">
-            Main Hospital overstocked Cefazolin 3x across recent audit runs.
+            {patternText}
           </p>
         </div>
         <div className="rounded-xl border bg-brand/10 p-4">
@@ -567,14 +652,142 @@ function MemoryCard({ done }: { done: boolean }) {
           </div>
           <p className="mt-2 text-3xl font-bold">$3,200/month</p>
           <p className="text-sm text-muted-foreground">
-            {done
-              ? 'Projected after transfer and reorder update.'
-              : 'Projection will lock after the agent run completes.'}
+            {backendRun
+              ? `Based on backend run ${backendRun.run_id}.`
+              : done
+                ? 'Projected after transfer and reorder update.'
+                : 'Projection will lock after the agent run completes.'}
           </p>
         </div>
       </CardContent>
     </Card>
   )
+}
+
+function BackendStatusBadge({
+  connected,
+  loading,
+}: {
+  connected: boolean
+  loading: boolean
+}) {
+  if (loading) {
+    return <Badge variant="muted">checking backend</Badge>
+  }
+
+  return connected ? (
+    <Badge variant="success">backend connected</Badge>
+  ) : (
+    <Badge variant="danger">backend offline</Badge>
+  )
+}
+
+function evaluationToMedicationLot(evaluation: BackendAgentRun['evaluations'][number]) {
+  const { lot, recommendation, policy } = evaluation
+  return {
+    medication: lot.medication_name,
+    location: lot.location_name || lot.location_id,
+    expiresInDays: daysUntil(lot.expiration_date),
+    demand: `${lot.demand_30d} units/30d · ${humanize(recommendation.recommended_action)}`,
+    value: formatMoney(lot.quantity * lot.unit_value_usd),
+    risk: `${humanize(recommendation.risk_level)} · ${humanize(policy.status)}`,
+    riskVariant: riskVariantForPolicy(policy.status, recommendation.risk_level),
+  } satisfies MedicationLot
+}
+
+function evaluationToAuditRow(evaluation: BackendAgentRun['evaluations'][number]) {
+  const { lot, recommendation, policy, tool_calls } = evaluation
+  return {
+    medication: lot.medication_name,
+    reasoning: recommendation.rationale,
+    recommendation: humanize(recommendation.recommended_action),
+    policy: `${humanize(policy.status)}: ${policy.reason}`,
+    tools: tool_calls.map((tool) => tool.tool_name).join(', ') || 'No tool call',
+    finalStatus:
+      tool_calls.map((tool) => `${humanize(tool.tool_name)} ${tool.status}`).join('; ') ||
+      humanize(policy.status),
+    variant: riskVariantForPolicy(policy.status, recommendation.risk_level),
+  } satisfies AuditRow
+}
+
+function flattenBackendToolResults(run: BackendAgentRun): Array<DashboardToolResult> {
+  return run.evaluations.flatMap((evaluation) =>
+    evaluation.tool_calls.map((call) => ({
+      tool: call.tool_name,
+      input: call.payload,
+      status: backendToolStatus(call.status, call.tool_name),
+      timestamp: run.created_at,
+      result: call.error ?? toolCallResultText(call.result),
+      raw: {
+        lot_id: evaluation.lot.lot_id,
+        medication_name: evaluation.lot.medication_name,
+        ...call,
+      },
+    })),
+  )
+}
+
+function backendToolStatus(status: string, toolName: string) {
+  if (status === 'failed') {
+    return 'failed'
+  }
+  if (status === 'skipped') {
+    return 'skipped'
+  }
+  if (toolName === 'quarantine_lot') {
+    return 'quarantined'
+  }
+  if (toolName === 'notify_pharmacist') {
+    return 'notified'
+  }
+  if (toolName === 'request_human_approval') {
+    return 'pending_approval'
+  }
+  if (toolName === 'update_reorder_rules') {
+    return 'updated'
+  }
+  return status === 'executed' ? 'success' : status
+}
+
+function toolCallResultText(result: Record<string, unknown>) {
+  const status = result.status ? String(result.status) : 'completed'
+  const id = Object.entries(result).find(([key]) => key.endsWith('_id'))?.[1]
+  return id ? `${status} (${String(id)})` : status
+}
+
+function riskVariantForPolicy(policyStatus: string, riskLevel: string): RiskVariant {
+  if (policyStatus === 'block' || riskLevel === 'critical') {
+    return 'danger'
+  }
+  if (policyStatus === 'escalate' || riskLevel === 'high') {
+    return 'warning'
+  }
+  if (policyStatus === 'allow' || riskLevel === 'low') {
+    return 'success'
+  }
+  return 'default'
+}
+
+function daysUntil(value: string) {
+  const expiration = new Date(`${value}T00:00:00`)
+  const now = new Date()
+  return Math.ceil(
+    (expiration.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+  )
+}
+
+function formatMoney(value: number) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
+function humanize(value: string) {
+  return value
+    .replaceAll('_', ' ')
+    .replace(/\b\w/g, (character) => character.toUpperCase())
 }
 
 function RiskBadge({
@@ -596,13 +809,13 @@ function RiskBadge({
   return <Badge>{children}</Badge>
 }
 
-function StatusBadge({ status }: { status: ToolResult['status'] }) {
+function StatusBadge({ status }: { status: DashboardToolResult['status'] }) {
   const variant =
-    status === 'success' || status === 'updated'
+    status === 'success' || status === 'updated' || status === 'executed'
       ? 'success'
       : status === 'pending_approval'
         ? 'warning'
-        : status === 'quarantined'
+        : status === 'quarantined' || status === 'failed'
           ? 'danger'
           : 'default'
 

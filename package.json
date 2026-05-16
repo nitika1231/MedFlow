@@ -20,6 +20,7 @@
     "lucide-react": "latest",
     "react": "latest",
     "react-dom": "latest",
+    "recharts": "^3.8.1",
     "tailwind-merge": "latest",
     "tw-animate-css": "latest"
   },

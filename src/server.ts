@@ -3,4 +3,8 @@ import {
   defaultStreamHandler,
 } from '@tanstack/react-start/server'
 
-export default createStartHandler(defaultStreamHandler)
+const handler = createStartHandler(defaultStreamHandler)
+
+export default {
+  fetch: handler,
+}

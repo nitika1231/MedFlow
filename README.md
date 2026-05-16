@@ -25,12 +25,7 @@ tool execution, and persistent SQLite memory/audit storage.
 
 ## Run locally
 
-Frontend:
-
-```bash
-npm install
-npm run dev
-```
+Start the backend and frontend in separate terminals.
 
 Backend:
 
@@ -39,6 +34,13 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
 MOCK_NEMOTRON=true uvicorn backend.app:app --reload --host 0.0.0.0 --port 8000
+```
+
+Frontend:
+
+```bash
+npm install
+BACKEND_API_URL=http://127.0.0.1:8000 npm run dev -- --host 0.0.0.0
 ```
 
 Open the frontend at the Vite URL printed by `npm run dev`. Open
@@ -57,8 +59,19 @@ Open the frontend at the Vite URL printed by `npm run dev`. Open
 - **TanStack Query** wired through `src/routes/__root.tsx`.
 
 The dashboard lives in `src/routes/index.tsx`. It renders medication lots,
-animates a 16-step agent run, calls all five mock OpenClaw tool server
-functions, and displays audit/memory cards for the demo.
+animates a 16-step agent run, calls the FastAPI backend through TanStack server
+functions, and displays backend evaluations, policy decisions, tool calls, and
+memory patterns. If the backend is not running, the UI shows a backend-offline
+status and the run error in the agent log.
+
+The frontend server functions call the backend URL from:
+
+```bash
+BACKEND_API_URL=http://127.0.0.1:8000
+```
+
+`VITE_BACKEND_API_URL` is also accepted. If neither is set, the frontend defaults
+to `http://127.0.0.1:8000`.
 
 ## NVIDIA / Nemotron configuration
 

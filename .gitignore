@@ -4,3 +4,7 @@ __pycache__/
 .pytest_cache/
 .venv/
 *.sqlite3
+node_modules/
+dist/
+.wrangler/
+.vite/

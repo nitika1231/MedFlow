@@ -25,14 +25,40 @@ tool execution, and persistent SQLite memory/audit storage.
 
 ## Run locally
 
+Frontend:
+
 ```bash
-python -m venv .venv
+npm install
+npm run dev
+```
+
+Backend:
+
+```bash
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
 MOCK_NEMOTRON=true uvicorn backend.app:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Open <http://localhost:8000/docs> for the generated API docs.
+Open the frontend at the Vite URL printed by `npm run dev`. Open
+<http://localhost:8000/docs> for the generated backend API docs.
+
+## Frontend stack
+
+- **TanStack Start v1** with React 19, SSR, file-based routes, and server
+  functions.
+- **Vite 7** through `@lovable.dev/vite-tanstack-config`.
+- **Cloudflare Workers** deployment config in `wrangler.jsonc`.
+- **TypeScript strict mode** with `@/*` path aliases.
+- **Tailwind CSS v4** design tokens in `src/styles.css`, including MedFlow
+  semantic tokens: `success`, `warning`, `danger`, and `brand`.
+- **shadcn/ui-style owned components** in `src/components/ui/`.
+- **TanStack Query** wired through `src/routes/__root.tsx`.
+
+The dashboard lives in `src/routes/index.tsx`. It renders medication lots,
+animates a 16-step agent run, calls all five mock OpenClaw tool server
+functions, and displays audit/memory cards for the demo.
 
 ## NVIDIA / Nemotron configuration
 
@@ -115,6 +141,8 @@ Useful endpoints:
 ## Test
 
 ```bash
+npm run typecheck
+npm run build
 pip install -r backend/requirements.txt
-MOCK_NEMOTRON=true python -m unittest discover -s backend/tests
+MOCK_NEMOTRON=true python3 -m unittest discover -s backend/tests
 ```

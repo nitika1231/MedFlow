@@ -22,7 +22,7 @@ export const Route = createFileRoute('/audit')({
 })
 
 function AuditLog() {
-  const { auditLog, dataSources } = useMedFlow()
+  const { auditLog } = useMedFlow()
   const [search, setSearch] = useState('')
   const [freshIds, setFreshIds] = useState<Set<string>>(new Set())
   const previousIdsRef = useRef<Set<string> | null>(null)
@@ -78,11 +78,6 @@ function AuditLog() {
     )
   }, [auditLog, search])
 
-  const sourceDescription =
-    dataSources.auditLog === 'Backend API'
-      ? 'Live rows from GET /api/audit-log. This reflects the latest recorded backend agent run.'
-      : 'Demo fallback rows are shown because GET /api/audit-log is not reachable.'
-
   function exportCsv() {
     const csv = toCsv(filteredRows)
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
@@ -124,25 +119,14 @@ function AuditLog() {
         <div className="flex items-center justify-between rounded-xl border border-[#d7e5d2] bg-[#f7faf5] px-4 py-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6f8b78]">
-              Audit data source and NemoClaw meaning
+              NemoClaw policy decisions
             </p>
-            <p className="mt-1 text-sm text-[#123c2f]">{sourceDescription}</p>
-            <p className="mt-1 text-sm text-[#547765]">
+            <p className="mt-1 text-sm text-[#123c2f]">
               NemoClaw is the policy gate: PASS allows an autonomous tool call, BLOCK
               prevents unsafe action and records the reason, APPROVAL REQUIRED creates a
               human pharmacist review step.
             </p>
           </div>
-          <Badge
-            variant="outline"
-            className={cn(
-              'border-[#c7d8c2] bg-white text-[#547765]',
-              dataSources.auditLog === 'Backend API' &&
-                'border-[#6f9d7a]/50 bg-[#edf4ea] text-[#2f6b4f]',
-            )}
-          >
-            {dataSources.auditLog}
-          </Badge>
         </div>
 
         <Table>

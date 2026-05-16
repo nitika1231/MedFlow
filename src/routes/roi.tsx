@@ -20,7 +20,7 @@ export const Route = createFileRoute('/roi')({
 })
 
 function RoiDashboard() {
-  const { roiSummary, dataSources } = useMedFlow()
+  const { roiSummary } = useMedFlow()
 
   return (
     <div className="space-y-6">
@@ -49,21 +49,11 @@ function RoiDashboard() {
 
       <Card className="border-[#d7e5d2] bg-white/90 shadow-2xl shadow-[#123c2f]/10">
         <CardHeader className="border-b border-[#d7e5d2] pb-5">
-          <div className="flex items-center justify-between gap-4">
-            <CardTitle className="whitespace-nowrap text-lg text-[#123c2f]">
-              Savings per agent run
-            </CardTitle>
-            <span className="whitespace-nowrap rounded-full border border-[#6f9d7a]/50 bg-[#edf4ea] px-3 py-1 text-xs font-semibold text-[#2f6b4f]">
-              Source: {dataSources.roiSummary}
-            </span>
-          </div>
+          <CardTitle className="whitespace-nowrap text-lg text-[#123c2f]">
+            Savings per agent run
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 pt-6">
-          <div className="rounded-xl border border-[#d7e5d2] bg-[#f7faf5] px-4 py-3 text-sm text-[#123c2f]">
-            ROI comes from <code>/api/roi-summary</code>, computed from backend
-            observations plus executed tool calls. Dollars saved use the lot quantity and
-            unit value captured during each agent run.
-          </div>
           <div className="h-[24rem]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={roiSummary.savingsHistory} margin={{ top: 10, right: 18, left: 0, bottom: 6 }}>

@@ -16,7 +16,7 @@ export const Route = createFileRoute('/memory')({
 })
 
 function MemoryAndPatterns() {
-  const { memory, dataSources } = useMedFlow()
+  const { memory } = useMedFlow()
   const hasLivePatterns = memory.patterns.length > 0
   const patternCards = hasLivePatterns ? memory.patterns : [mockMemoryPattern]
 
@@ -42,22 +42,12 @@ function MemoryAndPatterns() {
 
       <Card className="border-[#d7e5d2] bg-white/90 shadow-2xl shadow-[#123c2f]/10">
         <CardHeader className="border-b border-[#d7e5d2] pb-5">
-          <div className="flex items-center justify-between gap-4">
-            <CardTitle className="flex items-center gap-2 whitespace-nowrap text-lg text-[#123c2f]">
-              <BrainCircuit className="size-5 text-[#2f6b4f]" />
-              Memory timeline
-            </CardTitle>
-            <span className="whitespace-nowrap rounded-full border border-[#6f9d7a]/50 bg-[#edf4ea] px-3 py-1 text-xs font-semibold text-[#2f6b4f]">
-              Source: {dataSources.memory}
-            </span>
-          </div>
+          <CardTitle className="flex items-center gap-2 whitespace-nowrap text-lg text-[#123c2f]">
+            <BrainCircuit className="size-5 text-[#2f6b4f]" />
+            Memory timeline
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 pt-0">
-          <div className="rounded-xl border border-[#d7e5d2] bg-[#f7faf5] px-4 py-3 text-sm text-[#123c2f]">
-            Memory patterns come from <code>/api/memory/patterns</code>. The backend
-            increments observed runs when similar expiration, block, or approval
-            signals recur across agent runs.
-          </div>
           {memory.timeline.length === 0 ? (
             <div className="py-12 text-center text-sm text-[#547765]">
               No memory events recorded yet.

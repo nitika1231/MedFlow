@@ -32,7 +32,7 @@ const tagLabels: Record<TraceTag, string> = {
 }
 
 function AgentReasoning() {
-  const { inventory, runSequence, dataSources } = useMedFlow()
+  const { inventory, runSequence } = useMedFlow()
   const lots = useMemo(
     () =>
       mergeReasoningLots([
@@ -242,7 +242,7 @@ function AgentReasoning() {
               {selectedLot?.medicationName} · {selectedLot?.lotNumber}
             </h2>
             <p className="mt-1 font-mono text-xs text-[#b8cdb1]">
-              agent-trace://{selectedLotId} · inventory source: {dataSources.inventory}
+              agent-trace://{selectedLotId}
             </p>
           </div>
           <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5d2]/30 bg-white/10 px-3 py-1.5 text-xs font-semibold text-[#eef6ec]">

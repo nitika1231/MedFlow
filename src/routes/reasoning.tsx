@@ -32,11 +32,23 @@ const tagLabels: Record<TraceTag, string> = {
 }
 
 function AgentReasoning() {
-  const { runSequence } = useMedFlow()
-  const [selectedLotId, setSelectedLotId] = useState(reasoningLots[0]?.id ?? '')
+  const { inventory, runSequence } = useMedFlow()
+  const lots = useMemo(
+    () =>
+      mergeReasoningLots([
+        ...inventory.map((lot) => ({
+          id: lot.id,
+          medicationName: lot.medicationName,
+          lotNumber: lot.lotNumber,
+        })),
+        ...reasoningLots,
+      ]),
+    [inventory],
+  )
+  const [selectedLotId, setSelectedLotId] = useState(lots[0]?.id ?? '')
   const [traces, setTraces] = useState<Record<string, Array<TraceEntry>>>({})
   const [lotStatuses, setLotStatuses] = useState<Record<string, LotProcessingStatus>>(
-    createInitialStatuses,
+    () => createInitialStatuses(lots),
   )
   const [socketConnected, setSocketConnected] = useState(false)
   const [streaming, setStreaming] = useState(true)
@@ -65,12 +77,22 @@ function AgentReasoning() {
 
   useEffect(() => {
     setTraces({})
-    setLotStatuses(createInitialStatuses())
-    setSelectedLotId(reasoningLots[0]?.id ?? '')
+    setLotStatuses(createInitialStatuses(lots))
+    setSelectedLotId(lots[0]?.id ?? '')
     setStreaming(true)
     mockStartedRef.current = false
     setAttempt((current) => current + 1)
-  }, [runSequence])
+  }, [lots, runSequence])
+
+  useEffect(() => {
+    if (!lots.some((lot) => lot.id === selectedLotId)) {
+      setSelectedLotId(lots[0]?.id ?? '')
+    }
+    setLotStatuses((current) => ({
+      ...createInitialStatuses(lots),
+      ...current,
+    }))
+  }, [lots, selectedLotId])
 
   useEffect(() => {
     let websocket: WebSocket | null = null
@@ -133,8 +155,8 @@ function AgentReasoning() {
 
   const selectedTrace = traces[selectedLotId] ?? []
   const selectedLot = useMemo(
-    () => reasoningLots.find((lot) => lot.id === selectedLotId) ?? reasoningLots[0],
-    [selectedLotId],
+    () => lots.find((lot) => lot.id === selectedLotId) ?? lots[0],
+    [lots, selectedLotId],
   )
 
   return (
@@ -161,7 +183,7 @@ function AgentReasoning() {
         </div>
 
         <div className="space-y-2 p-4">
-          {reasoningLots.map((lot) => (
+          {lots.map((lot) => (
             <button
               key={lot.id}
               type="button"
@@ -250,11 +272,22 @@ function TraceLine({ entry }: { entry: TraceEntry }) {
   )
 }
 
-function createInitialStatuses() {
-  return Object.fromEntries(reasoningLots.map((lot) => [lot.id, 'pending'])) as Record<
+function createInitialStatuses(lots: typeof reasoningLots) {
+  return Object.fromEntries(lots.map((lot) => [lot.id, 'pending'])) as Record<
     string,
     LotProcessingStatus
   >
+}
+
+function mergeReasoningLots(lots: typeof reasoningLots) {
+  const seen = new Set<string>()
+  return lots.filter((lot) => {
+    if (seen.has(lot.id)) {
+      return false
+    }
+    seen.add(lot.id)
+    return true
+  })
 }
 
 function statusAfterMessage(message: ReasoningMessage): LotProcessingStatus {

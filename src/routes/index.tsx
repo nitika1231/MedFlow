@@ -15,6 +15,7 @@ import {
 import {
   daysUntil,
   formatCurrency,
+  MODEL_NAME,
   type DemandLevel,
   type InventoryLot,
   type LotStatus,
@@ -27,7 +28,7 @@ export const Route = createFileRoute('/')({
 })
 
 function InventoryMonitor() {
-  const { inventory } = useMedFlow()
+  const { inventory, dataSources } = useMedFlow()
   const atRiskLots = inventory.filter((lot) => daysUntil(lot.expirationDate) <= 14)
   const wasteValueAtRisk = atRiskLots.reduce(
     (total, lot) => total + lot.unitsRemaining * lot.unitValueUsd,
@@ -56,9 +57,26 @@ function InventoryMonitor() {
 
       <Card className="border-[#d7e5d2] bg-white/90 shadow-2xl shadow-[#123c2f]/10">
         <CardHeader className="border-b border-[#d7e5d2] pb-5">
-          <CardTitle className="text-lg text-[#123c2f]">Inventory Monitor</CardTitle>
+          <div className="flex items-center justify-between gap-4">
+            <CardTitle className="whitespace-nowrap text-lg text-[#123c2f]">
+              Inventory Monitor
+            </CardTitle>
+            <Badge
+              variant="outline"
+              className="whitespace-nowrap border-[#6f9d7a]/50 bg-[#edf4ea] text-[#2f6b4f]"
+            >
+              Source: {dataSources.inventory}
+            </Badge>
+          </div>
         </CardHeader>
-        <CardContent className="pt-2">
+        <CardContent className="space-y-4 pt-2">
+          <div className="rounded-xl border border-[#d7e5d2] bg-[#f7faf5] px-4 py-3 text-sm text-[#123c2f]">
+            <span className="font-semibold">Where the numbers come from:</span>{' '}
+            inventory rows come from <code>/api/inventory</code> when the backend is
+            running. Total lots is the row count, at-risk lots expire within 14 days,
+            and waste value is <code>units remaining x unit value</code>. If the backend
+            is offline, the dashboard labels and uses demo fallback data.
+          </div>
           <Table>
             <TableHeader>
               <TableRow className="border-[#d7e5d2] hover:bg-transparent">
@@ -95,6 +113,7 @@ function InventoryMonitor() {
               ))}
             </TableBody>
           </Table>
+          <PoweredByLine />
         </CardContent>
       </Card>
     </div>
@@ -115,7 +134,7 @@ function KpiCard({
       <CardContent className="pt-0">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#6f8b78]">
+            <p className="whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6f8b78]">
               {title}
             </p>
             <p className="mt-3 text-3xl font-bold text-[#123c2f]">{value}</p>
@@ -124,6 +143,14 @@ function KpiCard({
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+function PoweredByLine() {
+  return (
+    <p className="border-t border-[#d7e5d2] pt-3 text-xs text-[#6f8b78]">
+      Powered by Nemotron reasoning and NemoClaw policy checks · {MODEL_NAME}
+    </p>
   )
 }
 

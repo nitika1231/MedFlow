@@ -179,7 +179,9 @@ function AgentReasoning() {
         <div className="sticky top-0 border-b border-[#d7e5d2] bg-white/95 p-5 backdrop-blur">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-lg font-semibold text-[#123c2f]">Medication lots</h1>
+              <h1 className="whitespace-nowrap text-lg font-semibold text-[#123c2f]">
+                Medication lots
+              </h1>
               <p className="mt-1 text-sm text-[#547765]">
                 {traceSource === 'live'
                   ? 'Live trace from ws://localhost:8000/ws/agent-trace'
@@ -243,10 +245,22 @@ function AgentReasoning() {
               agent-trace://{selectedLotId} · inventory source: {dataSources.inventory}
             </p>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5d2]/30 bg-white/10 px-3 py-1.5 font-mono text-xs text-[#eef6ec]">
-            <span className="size-2 rounded-full bg-[#b9d2ae]" />
-            Model: {MODEL_NAME}
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#d7e5d2]/30 bg-white/10 px-3 py-1.5 text-xs font-semibold text-[#eef6ec]">
+            NemoClaw policy gate active
           </div>
+        </div>
+
+        <div className="border-b border-[#d7e5d2]/20 bg-white/5 px-5 py-3 text-sm text-[#eef6ec]">
+          <span className="font-semibold text-[#d7e5d2]">How NemoClaw works:</span>{' '}
+          it reads the Nemotron recommendation, then returns one policy decision:
+          <span className="mx-1 rounded bg-[#d7e5d2]/15 px-1.5 text-[#d7e5d2]">PASS</span>
+          for safe low-risk actions,
+          <span className="mx-1 rounded bg-red-400/15 px-1.5 text-red-200">BLOCK</span>
+          for safety/cold-chain/recall risk, or
+          <span className="mx-1 rounded bg-amber-300/15 px-1.5 text-amber-200">
+            APPROVAL REQUIRED
+          </span>
+          for high-value or controlled workflows.
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 font-mono text-sm leading-6">
@@ -261,6 +275,9 @@ function AgentReasoning() {
           {streaming ? <span className="terminal-cursor text-[#eef6ec]">█</span> : null}
           <div ref={streamEndRef} />
         </div>
+        <p className="border-t border-[#d7e5d2]/20 px-5 py-3 text-xs text-[#b8cdb1]">
+          Powered by Nemotron reasoning and NemoClaw policy checks · {MODEL_NAME}
+        </p>
       </section>
     </div>
   )

@@ -413,7 +413,7 @@ export async function getMemoryPatterns(): Promise<MemoryPatternsResponse> {
     return {
       patterns,
       timeline,
-      isDemoFallback: patterns.length === 0,
+      isDemoFallback: false,
     }
   } catch {
     return {

@@ -181,10 +181,23 @@ export function MedFlowProvider({ children }: { children: ReactNode }) {
     setAgentStatus('idle')
     setRunSequence((current) => current + 1)
     setToasts([])
+    void postJson('/api/reset-demo').finally(() => {
+      void queryClient.invalidateQueries({ queryKey: ['medflow'] })
+    })
     queryClient.setQueryData(['medflow', 'inventory'], mockInventory)
-    queryClient.setQueryData(['medflow', 'audit-log'], mockAuditLog)
-    queryClient.setQueryData(['medflow', 'memory-patterns'], defaultMemory)
-    queryClient.setQueryData(['medflow', 'roi-summary'], mockRoiSummary)
+    queryClient.setQueryData(['medflow', 'audit-log'], [])
+    queryClient.setQueryData(['medflow', 'memory-patterns'], {
+      patterns: [],
+      timeline: [],
+      isDemoFallback: false,
+    } satisfies MemoryPatternsResponse)
+    queryClient.setQueryData(['medflow', 'roi-summary'], {
+      totalUnitsPreventedThisRun: 0,
+      totalUnitsPreventedAllTime: 0,
+      dollarValueSavedThisRun: 0,
+      dollarValueSavedAllTime: 0,
+      savingsHistory: [],
+    } satisfies RoiSummary)
   }, [clearRunTimers, queryClient])
 
   const value = useMemo<MedFlowContextValue>(

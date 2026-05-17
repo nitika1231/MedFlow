@@ -5,9 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import {
   MODEL_NAME,
-  mockReasoningMessages,
-  reasoningLots,
   type ReasoningMessage,
+  type ReasoningLot,
   type TraceTag,
 } from '@/lib/medflow-data'
 import { useMedFlow } from '@/lib/medflow-context'
@@ -18,6 +17,7 @@ export const Route = createFileRoute('/reasoning')({
 })
 
 type LotProcessingStatus = 'pending' | 'processing' | 'action' | 'blocked' | 'approval'
+type TraceSource = 'idle' | 'waiting' | 'live' | 'demo'
 
 type TraceEntry = ReasoningMessage & {
   id: string
@@ -34,25 +34,22 @@ const tagLabels: Record<TraceTag, string> = {
 function AgentReasoning() {
   const { inventory, runSequence } = useMedFlow()
   const lots = useMemo(
-    () =>
-      mergeReasoningLots([
-        ...inventory.map((lot) => ({
-          id: lot.id,
-          medicationName: lot.medicationName,
-          lotNumber: lot.lotNumber,
-        })),
-        ...reasoningLots,
-      ]),
+    () => inventory.map((lot) => ({
+      id: lot.id,
+      medicationName: lot.medicationName,
+      lotNumber: lot.lotNumber,
+    })),
     [inventory],
   )
+  const lotIds = useMemo(() => new Set(lots.map((lot) => lot.id)), [lots])
   const [selectedLotId, setSelectedLotId] = useState(lots[0]?.id ?? '')
   const [traces, setTraces] = useState<Record<string, Array<TraceEntry>>>({})
   const [lotStatuses, setLotStatuses] = useState<Record<string, LotProcessingStatus>>(
     () => createInitialStatuses(lots),
   )
   const [socketConnected, setSocketConnected] = useState(false)
-  const [streaming, setStreaming] = useState(true)
-  const [traceSource, setTraceSource] = useState<'waiting' | 'live' | 'demo'>('waiting')
+  const [streaming, setStreaming] = useState(false)
+  const [traceSource, setTraceSource] = useState<TraceSource>('idle')
   const [attempt, setAttempt] = useState(0)
   const autoSelectTraceRef = useRef(true)
   const mockStartedRef = useRef(false)
@@ -61,6 +58,9 @@ function AgentReasoning() {
   const streamEndRef = useRef<HTMLDivElement | null>(null)
 
   const appendMessage = useCallback((message: ReasoningMessage) => {
+    if (!lotIds.has(message.lot_id)) {
+      return
+    }
     messageReceivedRef.current = true
     setTraces((current) => ({
       ...current,
@@ -81,13 +81,13 @@ function AgentReasoning() {
       ...current,
       [message.lot_id]: statusAfterMessage(message),
     }))
-  }, [])
+  }, [lotIds])
 
   useEffect(() => {
     setTraces({})
     setLotStatuses(createInitialStatuses(lots))
-    setStreaming(true)
-    setTraceSource('waiting')
+    setStreaming(runSequence > 0)
+    setTraceSource(runSequence > 0 ? 'waiting' : 'idle')
     autoSelectTraceRef.current = true
     mockStartedRef.current = false
     messageReceivedRef.current = false
@@ -105,6 +105,10 @@ function AgentReasoning() {
   }, [lots, selectedLotId])
 
   useEffect(() => {
+    if (runSequence === 0) {
+      return
+    }
+
     let websocket: WebSocket | null = null
     let reconnectTimer = 0
     let fallbackTimer = 0
@@ -150,7 +154,7 @@ function AgentReasoning() {
       if (!messageReceivedRef.current && !mockStartedRef.current) {
         mockStartedRef.current = true
         setTraceSource('demo')
-        mockTimers = streamMockMessages(appendMessage, () => setStreaming(false))
+        mockTimers = streamMockMessages(lots, appendMessage, () => setStreaming(false))
       }
     }, 1_200)
 
@@ -161,7 +165,7 @@ function AgentReasoning() {
       mockTimers.forEach((timer) => window.clearTimeout(timer))
       websocket?.close()
     }
-  }, [appendMessage, attempt])
+  }, [appendMessage, attempt, lots, runSequence])
 
   useEffect(() => {
     streamEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
@@ -187,9 +191,11 @@ function AgentReasoning() {
                   ? 'Live trace from ws://localhost:8000/ws/agent-trace'
                   : traceSource === 'demo'
                     ? 'Demo trace preview; click Run Agent for live backend reasoning'
-                    : socketConnected
-                      ? 'Connected to backend trace stream; waiting for Run Agent'
-                      : 'Backend WebSocket unavailable; preparing demo trace'}
+                    : traceSource === 'waiting'
+                      ? socketConnected
+                        ? 'Connected to backend trace stream; waiting for Run Agent'
+                        : 'Backend WebSocket unavailable; preparing demo trace'
+                      : 'Click Run Agent to start top-down reasoning over inventory'}
               </p>
             </div>
             <Badge
@@ -203,9 +209,11 @@ function AgentReasoning() {
                 ? 'WebSocket live'
                 : traceSource === 'demo'
                   ? 'Demo trace'
-                  : socketConnected
-                    ? 'Connected'
-                    : 'Connecting'}
+                  : traceSource === 'waiting'
+                    ? socketConnected
+                      ? 'Connected'
+                      : 'Connecting'
+                    : 'Idle'}
             </Badge>
           </div>
         </div>
@@ -266,7 +274,9 @@ function AgentReasoning() {
         <div className="flex-1 overflow-y-auto p-5 font-mono text-sm leading-6">
           {selectedTrace.length === 0 ? (
             <div className="text-[#b8cdb1]">
-              Waiting for trace tokens for this lot
+              {runSequence === 0
+                ? 'Click Run Agent to begin reasoning on the inventory from top to bottom'
+                : 'Waiting for trace tokens for this lot'}
               {streaming ? <span className="terminal-cursor ml-1">█</span> : null}
             </div>
           ) : (
@@ -317,22 +327,11 @@ function TraceLine({ entry }: { entry: TraceEntry }) {
   )
 }
 
-function createInitialStatuses(lots: typeof reasoningLots) {
+function createInitialStatuses(lots: Array<ReasoningLot>) {
   return Object.fromEntries(lots.map((lot) => [lot.id, 'pending'])) as Record<
     string,
     LotProcessingStatus
   >
-}
-
-function mergeReasoningLots(lots: typeof reasoningLots) {
-  const seen = new Set<string>()
-  return lots.filter((lot) => {
-    if (seen.has(lot.id)) {
-      return false
-    }
-    seen.add(lot.id)
-    return true
-  })
 }
 
 function statusAfterMessage(message: ReasoningMessage): LotProcessingStatus {
@@ -390,13 +389,67 @@ function isTraceTag(value: unknown): value is TraceTag {
 }
 
 function streamMockMessages(
+  lots: Array<ReasoningLot>,
   appendMessage: (message: ReasoningMessage) => void,
   onComplete: () => void,
 ): Array<number> {
-  const timers = mockReasoningMessages.map((message, index) =>
+  const messages = lots.flatMap(mockMessagesForLot)
+  const timers = messages.map((message, index) =>
     window.setTimeout(() => appendMessage(message), 520 + index * 720),
   )
-  const completeTimer = window.setTimeout(onComplete, 520 + mockReasoningMessages.length * 720)
+  const completeTimer = window.setTimeout(onComplete, 520 + messages.length * 720)
   timers.push(completeTimer)
   return timers
+}
+
+function mockMessagesForLot(lot: ReasoningLot): Array<ReasoningMessage> {
+  const normalizedName = lot.medicationName.toLowerCase()
+  const isBlocked =
+    normalizedName.includes('insulin') ||
+    normalizedName.includes('rocuronium') ||
+    normalizedName.includes('dexmedetomidine')
+  const needsApproval =
+    normalizedName.includes('vincristine') ||
+    normalizedName.includes('nivolumab') ||
+    normalizedName.includes('rituximab') ||
+    normalizedName.includes('pembrolizumab') ||
+    normalizedName.includes('morphine')
+  const policyText = isBlocked
+    ? 'BLOCK: safety signal requires quarantine before any transfer.'
+    : needsApproval
+      ? 'APPROVAL REQUIRED: high-value or controlled workflow requires pharmacist review.'
+      : 'PASS: safe low-risk inventory action can proceed.'
+  const actionText = isBlocked
+    ? 'quarantine_lot queued for pharmacist safety review.'
+    : needsApproval
+      ? 'request_human_approval created for pharmacist review.'
+      : 'transfer_inventory or hold decision recorded for the current inventory lot.'
+
+  return [
+    {
+      type: 'reasoning',
+      lot_id: lot.id,
+      tag: 'OBSERVE',
+      content: `${lot.medicationName} ${lot.lotNumber}: loaded from the current inventory queue.`,
+    },
+    {
+      type: 'reasoning',
+      lot_id: lot.id,
+      tag: 'REASON',
+      content:
+        'Nemotron compares expiration window, demand, value, and safety signals for this lot.',
+    },
+    {
+      type: 'reasoning',
+      lot_id: lot.id,
+      tag: 'POLICY_CHECK',
+      content: policyText,
+    },
+    {
+      type: 'reasoning',
+      lot_id: lot.id,
+      tag: 'ACTION',
+      content: actionText,
+    },
+  ]
 }

@@ -670,6 +670,20 @@ class MemoryStore:
             for row in rows
         ]
 
+    def reset_demo(self) -> None:
+        with self._connect() as conn:
+            conn.executescript(
+                """
+                DELETE FROM tool_calls;
+                DELETE FROM policy_decisions;
+                DELETE FROM recommendations;
+                DELETE FROM lot_observations;
+                DELETE FROM agent_runs;
+                DELETE FROM waste_patterns;
+                DELETE FROM evidence_reports;
+                """
+            )
+
 
 class DataIngestionLayer:
     def __init__(self, settings: AgentSettings):
@@ -1822,12 +1836,18 @@ def dashboard_demo_lots(run_index: int) -> list[MedicationLot]:
 
 
 def next_dashboard_demo_run_index() -> int:
-    dashboard_runs = [
-        run
-        for run in service.memory.recent_runs(100)
-        if str(run.get("source", "")).startswith("frontend-dashboard")
-    ]
-    return len(dashboard_runs)
+    return len(dashboard_run_details())
+
+
+def dashboard_run_details(limit: int = 100) -> list[dict[str, Any]]:
+    details: list[dict[str, Any]] = []
+    for run in service.memory.recent_runs(limit):
+        if not str(run.get("source", "")).startswith("frontend-dashboard"):
+            continue
+        detail = service.memory.run_detail(run["run_id"])
+        if detail:
+            details.append(detail)
+    return details
 
 
 def lot_from_observation(data: dict[str, Any]) -> MedicationLot | None:
@@ -2068,31 +2088,24 @@ def run_metrics(detail: dict[str, Any] | None) -> dict[str, float]:
     return {"units": units, "dollars": round(dollars, 2)}
 
 
+def dashboard_run_metrics() -> list[tuple[dict[str, Any], dict[str, float]]]:
+    return [(detail, run_metrics(detail)) for detail in dashboard_run_details()]
+
+
 def roi_summary_for_dashboard() -> dict[str, Any]:
-    runs = service.memory.recent_runs(50)
-    detail_by_run = [
-        detail for run in runs if (detail := service.memory.run_detail(run["run_id"]))
-    ]
-    latest_metrics = run_metrics(detail_by_run[0] if detail_by_run else None)
-    all_metrics = [run_metrics(detail) for detail in detail_by_run]
+    run_metrics_pairs = dashboard_run_metrics()
+    latest_metrics = run_metrics_pairs[0][1] if run_metrics_pairs else {"units": 0, "dollars": 0.0}
+    all_metrics = [metrics for _, metrics in run_metrics_pairs]
     total_units = sum(int(metrics["units"]) for metrics in all_metrics)
     total_dollars = round(sum(float(metrics["dollars"]) for metrics in all_metrics), 2)
     history = [
         {
-            "run": f"Run {index + 1:02d}",
-            "dollarsSaved": float(run_metrics(detail)["dollars"]),
+            "run": f"Run {len(run_metrics_pairs) - index:02d}",
+            "dollarsSaved": float(metrics["dollars"]),
         }
-        for index, detail in enumerate(reversed(detail_by_run[:10]))
+        for index, (_, metrics) in enumerate(run_metrics_pairs[:10])
     ]
-    if len(history) < 3:
-        history = (
-            [
-                {"run": "Baseline 01", "dollarsSaved": 9400},
-                {"run": "Baseline 02", "dollarsSaved": 11800},
-                {"run": "Baseline 03", "dollarsSaved": 15200},
-            ]
-            + history
-        )[-3:]
+    history.reverse()
     return {
         "totalUnitsPreventedThisRun": int(latest_metrics["units"]),
         "totalUnitsPreventedAllTime": total_units,
@@ -2103,37 +2116,83 @@ def roi_summary_for_dashboard() -> dict[str, Any]:
 
 
 def memory_patterns_for_dashboard(limit: int = 50) -> dict[str, Any]:
-    patterns = [
-        {
-            "id": pattern["pattern_key"],
-            "medicationName": pattern["medication_name"],
-            "location": pattern["location_id"],
-            "description": (
-                f"Nemotron observed {humanize(pattern['latest_signal'])} for "
-                f"{pattern['medication_name']} at {pattern['location_id']}."
-            ),
-            "observedRuns": pattern["occurrence_count"],
-            "reorderAdjustment": "Reduce reorder point and route surplus to higher-demand sites",
-            "estimatedMonthlySavings": max(1200, pattern["occurrence_count"] * 800),
-        }
-        for pattern in service.memory.patterns(limit)
-    ]
+    details = dashboard_run_details(limit)
+    latest_inventory = lots_from_run_detail(details[0]) if details else []
+    current_keys = {
+        f"{lot.medication_name.lower()}:{lot.location_id}" for lot in latest_inventory
+    }
+    pattern_counts: dict[str, dict[str, Any]] = {}
+    for detail in details:
+        policies = latest_policy_by_lot(detail)
+        for lot in lots_from_run_detail(detail):
+            key = f"{lot.medication_name.lower()}:{lot.location_id}"
+            if current_keys and key not in current_keys:
+                continue
+            policy_status = str(
+                policies.get(lot.lot_id, {}).get("status", PolicyStatus.ALLOW.value)
+            )
+            signals: list[str] = []
+            if lot.days_until_expiration <= 30 and (
+                lot.projected_days_to_deplete is None
+                or lot.projected_days_to_deplete > lot.days_until_expiration
+            ):
+                signals.append("near_expiration_low_demand")
+            if policy_status == PolicyStatus.BLOCK.value:
+                signals.append("blocked_safety_or_recall")
+            if policy_status == PolicyStatus.ESCALATE.value:
+                signals.append("approval_required_high_value_or_controlled")
+            if not signals:
+                continue
+            entry = pattern_counts.setdefault(
+                key,
+                {
+                    "id": key,
+                    "medicationName": lot.medication_name,
+                    "location": lot.location_name or lot.location_id,
+                    "signals": set(),
+                    "observedRuns": 0,
+                    "estimatedMonthlySavings": 0,
+                },
+            )
+            entry["observedRuns"] += 1
+            entry["estimatedMonthlySavings"] += int(lot.lot_value_usd)
+            entry["signals"].update(signals)
+
+    patterns = []
+    for entry in pattern_counts.values():
+        signals = sorted(entry.pop("signals"))
+        patterns.append(
+            entry
+            | {
+                "description": (
+                    f"Nemotron observed {humanize(', '.join(signals))} for "
+                    f"{entry['medicationName']} at {entry['location']}."
+                ),
+                "reorderAdjustment": (
+                    "Reduce reorder point and route surplus to higher-demand sites"
+                    if "near_expiration_low_demand" in signals
+                    else "Keep current reorder settings and require policy review before action"
+                ),
+                "estimatedMonthlySavings": max(0, int(entry["estimatedMonthlySavings"])),
+            }
+        )
+    patterns.sort(key=lambda pattern: pattern["estimatedMonthlySavings"], reverse=True)
 
     timeline: list[dict[str, Any]] = []
-    for run in service.memory.recent_runs(10):
-        detail = service.memory.run_detail(run["run_id"])
-        if not detail:
-            continue
+    current_lot_ids = {lot.lot_id for lot in latest_inventory}
+    for detail in details[:10]:
         observations = {
             row["lot_id"]: row["data"]
             for row in detail.get("observations", [])
             if isinstance(row.get("data"), dict)
         }
         for tool_call in detail.get("tool_calls", []):
+            if current_lot_ids and tool_call["lot_id"] not in current_lot_ids:
+                continue
             lot = observations.get(tool_call["lot_id"], {})
             timeline.append(
                 {
-                    "id": f"{run['run_id']}-{tool_call['lot_id']}-{tool_call['tool_name']}",
+                    "id": f"{detail['run_id']}-{tool_call['lot_id']}-{tool_call['tool_name']}",
                     "timestamp": tool_call["created_at"],
                     "medicationName": lot.get("medication_name", "Medication"),
                     "actionTaken": humanize(tool_call["tool_name"]),
@@ -2190,6 +2249,12 @@ async def api_run_agent(request: AgentRunRequest | None = None) -> AgentRunRespo
             use_live_source=False,
         )
     return await service.run(run_request, trace_callback=trace_hub.broadcast)
+
+
+@app.post("/api/reset-demo")
+async def api_reset_demo() -> dict[str, Any]:
+    service.memory.reset_demo()
+    return {"status": "reset"}
 
 
 @app.get("/api/inventory")

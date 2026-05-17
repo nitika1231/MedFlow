@@ -32,7 +32,7 @@ const tagLabels: Record<TraceTag, string> = {
 }
 
 function AgentReasoning() {
-  const { inventory, runSequence } = useMedFlow()
+  const { inventory, isAgentRunning, runSequence } = useMedFlow()
   const lots = useMemo(
     () => inventory.map((lot) => ({
       id: lot.id,
@@ -86,13 +86,12 @@ function AgentReasoning() {
   useEffect(() => {
     setTraces({})
     setLotStatuses(createInitialStatuses(lots))
-    setStreaming(runSequence > 0)
-    setTraceSource(runSequence > 0 ? 'waiting' : 'idle')
+    setStreaming(isAgentRunning)
+    setTraceSource(isAgentRunning ? 'waiting' : 'idle')
     autoSelectTraceRef.current = true
     mockStartedRef.current = false
     messageReceivedRef.current = false
-    setAttempt((current) => current + 1)
-  }, [runSequence])
+  }, [isAgentRunning, runSequence])
 
   useEffect(() => {
     if (!lots.some((lot) => lot.id === selectedLotId)) {
@@ -105,14 +104,8 @@ function AgentReasoning() {
   }, [lots, selectedLotId])
 
   useEffect(() => {
-    if (runSequence === 0) {
-      return
-    }
-
     let websocket: WebSocket | null = null
     let reconnectTimer = 0
-    let fallbackTimer = 0
-    let mockTimers: Array<number> = []
     let closed = false
 
     function connect() {
@@ -122,7 +115,6 @@ function AgentReasoning() {
         if (closed) return
         socketConnectedRef.current = true
         setSocketConnected(true)
-        setStreaming(true)
       }
 
       websocket.onmessage = (event) => {
@@ -150,22 +142,34 @@ function AgentReasoning() {
     }
 
     connect()
+
+    return () => {
+      closed = true
+      window.clearTimeout(reconnectTimer)
+      websocket?.close()
+    }
+  }, [appendMessage, attempt])
+
+  useEffect(() => {
+    if (!isAgentRunning) {
+      return
+    }
+
+    let fallbackTimer = 0
+    let mockTimers: Array<number> = []
     fallbackTimer = window.setTimeout(() => {
       if (!messageReceivedRef.current && !mockStartedRef.current) {
         mockStartedRef.current = true
         setTraceSource('demo')
         mockTimers = streamMockMessages(lots, appendMessage, () => setStreaming(false))
       }
-    }, 1_200)
+    }, 1_500)
 
     return () => {
-      closed = true
-      window.clearTimeout(reconnectTimer)
       window.clearTimeout(fallbackTimer)
       mockTimers.forEach((timer) => window.clearTimeout(timer))
-      websocket?.close()
     }
-  }, [appendMessage, attempt, lots, runSequence])
+  }, [appendMessage, isAgentRunning, lots, runSequence])
 
   useEffect(() => {
     streamEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })

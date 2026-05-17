@@ -18,7 +18,11 @@ export const Route = createFileRoute('/memory')({
 function MemoryAndPatterns() {
   const { memory } = useMedFlow()
   const hasLivePatterns = memory.patterns.length > 0
-  const patternCards = hasLivePatterns ? memory.patterns : [mockMemoryPattern]
+  const patternCards = hasLivePatterns
+    ? memory.patterns
+    : memory.isDemoFallback
+      ? [mockMemoryPattern]
+      : []
 
   return (
     <div className="space-y-6">

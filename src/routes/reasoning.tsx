@@ -32,8 +32,8 @@ const tagLabels: Record<TraceTag, string> = {
 }
 
 function AgentReasoning() {
-  const { inventory, runSequence } = useMedFlow()
-  const lots = useMemo(
+  const { agentStatus, inventory, runSequence } = useMedFlow()
+  const inventoryLots = useMemo(
     () => inventory.map((lot) => ({
       id: lot.id,
       medicationName: lot.medicationName,
@@ -41,6 +41,10 @@ function AgentReasoning() {
     })),
     [inventory],
   )
+  const [traceLots, setTraceLots] = useState<Array<ReasoningLot>>(() => inventoryLots)
+  // Keep the trace bound to one run; inventory refetches during a run can otherwise
+  // tear down the stream before ACTION messages arrive.
+  const lots = traceLots
   const lotIds = useMemo(() => new Set(lots.map((lot) => lot.id)), [lots])
   const [selectedLotId, setSelectedLotId] = useState(lots[0]?.id ?? '')
   const [traces, setTraces] = useState<Record<string, Array<TraceEntry>>>({})
@@ -51,11 +55,14 @@ function AgentReasoning() {
   const [streaming, setStreaming] = useState(false)
   const [traceSource, setTraceSource] = useState<TraceSource>('idle')
   const [attempt, setAttempt] = useState(0)
+  const [activeTraceSequence, setActiveTraceSequence] = useState(0)
   const autoSelectTraceRef = useRef(true)
   const mockStartedRef = useRef(false)
   const messageReceivedRef = useRef(false)
   const socketConnectedRef = useRef(false)
   const streamEndRef = useRef<HTMLDivElement | null>(null)
+  const latestInventoryLotsRef = useRef(inventoryLots)
+  const agentStatusRef = useRef(agentStatus)
 
   const appendMessage = useCallback((message: ReasoningMessage) => {
     if (!lotIds.has(message.lot_id)) {
@@ -84,10 +91,29 @@ function AgentReasoning() {
   }, [lotIds])
 
   useEffect(() => {
+    latestInventoryLotsRef.current = inventoryLots
+    if (agentStatusRef.current === 'idle') {
+      setTraceLots(inventoryLots)
+    }
+  }, [inventoryLots])
+
+  useEffect(() => {
+    agentStatusRef.current = agentStatus
+  }, [agentStatus])
+
+  useEffect(() => {
+    const runLots = latestInventoryLotsRef.current
+    const shouldStartTrace = runSequence > 0 && agentStatusRef.current !== 'idle'
+
+    setTraceLots(runLots)
     setTraces({})
-    setLotStatuses(createInitialStatuses(lots))
-    setStreaming(runSequence > 0)
-    setTraceSource(runSequence > 0 ? 'waiting' : 'idle')
+    setLotStatuses(createInitialStatuses(runLots))
+    setSelectedLotId((current) =>
+      runLots.some((lot) => lot.id === current) ? current : runLots[0]?.id ?? '',
+    )
+    setActiveTraceSequence(shouldStartTrace ? runSequence : 0)
+    setStreaming(shouldStartTrace)
+    setTraceSource(shouldStartTrace ? 'waiting' : 'idle')
     autoSelectTraceRef.current = true
     mockStartedRef.current = false
     messageReceivedRef.current = false
@@ -105,7 +131,7 @@ function AgentReasoning() {
   }, [lots, selectedLotId])
 
   useEffect(() => {
-    if (runSequence === 0) {
+    if (activeTraceSequence === 0) {
       return
     }
 
@@ -165,7 +191,7 @@ function AgentReasoning() {
       mockTimers.forEach((timer) => window.clearTimeout(timer))
       websocket?.close()
     }
-  }, [appendMessage, attempt, lots, runSequence])
+  }, [activeTraceSequence, appendMessage, attempt, lots])
 
   useEffect(() => {
     streamEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
@@ -274,7 +300,7 @@ function AgentReasoning() {
         <div className="flex-1 overflow-y-auto p-5 font-mono text-sm leading-6">
           {selectedTrace.length === 0 ? (
             <div className="text-[#b8cdb1]">
-              {runSequence === 0
+              {activeTraceSequence === 0
                 ? 'Click Run Agent to begin reasoning on the inventory from top to bottom'
                 : 'Waiting for trace tokens for this lot'}
               {streaming ? <span className="terminal-cursor ml-1">█</span> : null}
